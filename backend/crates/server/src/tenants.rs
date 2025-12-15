@@ -1,8 +1,11 @@
-use crate::{fhir_client::ServerCTX, services::AppState};
+use crate::{
+    auth_n::oidc::utilities::set_user_password, fhir_client::ServerCTX, services::AppState,
+};
 use clap::ValueEnum;
 use haste_fhir_client::FHIRClient;
 use haste_fhir_model::r4::generated::{
-    resources::{Project, Resource, ResourceType},
+    resources::{Project, Resource, ResourceType, User},
+    terminology::{IssueType, UserRole},
     types::FHIRString,
 };
 use haste_fhir_operation_error::OperationOutcomeError;
@@ -10,7 +13,13 @@ use haste_fhir_search::SearchEngine;
 use haste_fhir_terminology::FHIRTerminology;
 use haste_jwt::{ProjectId, TenantId};
 use haste_repository::{
-    Repository, admin::TenantAuthAdmin, types::tenant::CreateTenant, utilities::generate_id,
+    Repository,
+    admin::TenantAuthAdmin,
+    types::{
+        tenant::{CreateTenant, Tenant},
+        user::CreateUser,
+    },
+    utilities::generate_id,
 };
 use std::sync::Arc;
 
@@ -33,23 +42,77 @@ impl From<SubscriptionTier> for String {
     }
 }
 
+pub async fn create_user<
+    Repo: Repository + Send + Sync + 'static,
+    Search: SearchEngine + Send + Sync + 'static,
+    Terminology: FHIRTerminology + Send + Sync + 'static,
+>(
+    services: &AppState<Repo, Search, Terminology>,
+    tenant: &TenantId,
+    email: &str,
+    password: Option<&str>,
+    user_role: UserRole,
+) -> Result<User, OperationOutcomeError> {
+    let ctx = Arc::new(ServerCTX::system(
+        tenant.clone(),
+        ProjectId::System,
+        services.fhir_client.clone(),
+    ));
+
+    let user = services
+        .fhir_client
+        .create(
+            ctx,
+            ResourceType::User,
+            Resource::User(User {
+                role: Box::new(user_role),
+                email: Some(Box::new(FHIRString {
+                    value: Some(email.to_string()),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            }),
+        )
+        .await?;
+
+    let user = match user {
+        Resource::User(user) => user,
+        _ => panic!("Created resource is not a User"),
+    };
+
+    let user_id = user.id.clone().unwrap();
+
+    if let Some(password) = password {
+        set_user_password(&*services.repo, &tenant, email, &user_id, password).await?;
+    }
+
+    Ok(user)
+}
+
+pub struct CreateTenantOutput {
+    pub tenant: Tenant,
+    pub owner: haste_repository::types::user::User,
+}
+
 pub async fn create_tenant<
     Repo: Repository + Send + Sync + 'static,
     Search: SearchEngine + Send + Sync + 'static,
     Terminology: FHIRTerminology + Send + Sync + 'static,
 >(
-    services: Arc<AppState<Repo, Search, Terminology>>,
-    id: Option<String>,
+    services: &AppState<Repo, Search, Terminology>,
+    tenant_id: Option<String>,
     _name: &str,
     subscription_tier: &SubscriptionTier,
-) -> Result<(), OperationOutcomeError> {
+    owner_email: &str,
+    owner_password: Option<&str>,
+) -> Result<CreateTenantOutput, OperationOutcomeError> {
     let services = services.transaction().await?;
 
     let new_tenant = TenantAuthAdmin::create(
         &*services.repo,
         &TenantId::System,
         CreateTenant {
-            id: Some(TenantId::new(id.unwrap_or(generate_id(Some(16))))),
+            id: Some(TenantId::new(tenant_id.unwrap_or(generate_id(Some(16))))),
             subscription_tier: Some(subscription_tier.clone().into()),
         },
     )
@@ -59,7 +122,7 @@ pub async fn create_tenant<
         .fhir_client
         .create(
             Arc::new(ServerCTX::system(
-                new_tenant.id,
+                new_tenant.id.clone(),
                 ProjectId::System,
                 services.fhir_client.clone(),
             )),
@@ -78,7 +141,39 @@ pub async fn create_tenant<
         )
         .await?;
 
+    let user = create_user(
+        &services,
+        &new_tenant.id,
+        &owner_email,
+        owner_password,
+        UserRole::Owner(None),
+    )
+    .await?;
+
+    let Some(user_id) = user.id else {
+        return Err(OperationOutcomeError::fatal(
+            IssueType::Invalid(None),
+            "The user ID is required to complete the tenant creation process.".to_string(),
+        ));
+    };
+
+    let Some(user) = TenantAuthAdmin::<CreateUser, _, _, _, _>::read(
+        services.repo.as_ref(),
+        &new_tenant.id,
+        &user_id,
+    )
+    .await?
+    else {
+        return Err(OperationOutcomeError::fatal(
+            IssueType::Invalid(None),
+            "The user does not exist after creation.".to_string(),
+        ));
+    };
+
     services.commit().await?;
 
-    Ok(())
+    Ok(CreateTenantOutput {
+        tenant: new_tenant,
+        owner: user,
+    })
 }

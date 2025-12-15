@@ -1,5 +1,6 @@
 use crate::{
     services::AppState,
+    tenants::{SubscriptionTier, create_tenant},
     ui::components::{banner, page_html},
 };
 use axum::{Form, response::IntoResponse};
@@ -8,7 +9,11 @@ use axum_extra::routing::TypedPath;
 use haste_fhir_operation_error::OperationOutcomeError;
 use haste_fhir_search::SearchEngine;
 use haste_fhir_terminology::FHIRTerminology;
-use haste_repository::Repository;
+use haste_repository::{
+    Repository,
+    admin::SystemAdmin,
+    types::user::{User, UserRole, UserSearchClauses},
+};
 use maud::html;
 use std::sync::Arc;
 
@@ -51,15 +56,39 @@ pub struct GlobalSignupForm {
 }
 
 #[allow(unused)]
-pub fn create_or_retrieve_user<
+async fn create_or_retrieve_user_tenant<
     Repo: Repository + Send + Sync,
     Search: SearchEngine + Send + Sync,
     Terminology: FHIRTerminology + Send + Sync,
 >(
-    _app_state: &AppState<Repo, Search, Terminology>,
-    _email: &str,
-) -> Result<(), OperationOutcomeError> {
-    todo!();
+    app_state: &AppState<Repo, Search, Terminology>,
+    email: &str,
+) -> Result<User, OperationOutcomeError> {
+    let mut result = SystemAdmin::search(
+        app_state.repo.as_ref(),
+        &UserSearchClauses {
+            email: Some(email.to_string()),
+            role: Some(UserRole::Owner),
+            method: None,
+        },
+    )
+    .await?;
+
+    if let Some(user) = result.pop() {
+        return Ok(user);
+    } else {
+        let result = create_tenant(
+            app_state,
+            None,
+            "default",
+            &SubscriptionTier::Free,
+            email,
+            None,
+        )
+        .await?;
+
+        Ok(result.owner)
+    }
 }
 
 #[allow(unused)]
@@ -74,8 +103,10 @@ pub async fn global_signup_post<
     Terminology: FHIRTerminology + Send + Sync,
 >(
     _: GlobalSignupPost,
-    State(_app_state): State<Arc<AppState<Repo, Search, Terminology>>>,
-    Form(_form): Form<GlobalSignupForm>,
+    State(app_state): State<Arc<AppState<Repo, Search, Terminology>>>,
+    Form(form): Form<GlobalSignupForm>,
 ) -> Result<Response, OperationOutcomeError> {
-    todo!();
+    let user = create_or_retrieve_user_tenant(app_state.as_ref(), &form.email).await?;
+
+    Ok(html! {}.into_response())
 }
