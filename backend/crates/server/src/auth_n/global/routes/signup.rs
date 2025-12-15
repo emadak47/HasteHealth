@@ -51,6 +51,18 @@ pub struct GlobalSignupForm {
 }
 
 #[allow(unused)]
+pub fn create_or_retrieve_user<
+    Repo: Repository + Send + Sync,
+    Search: SearchEngine + Send + Sync,
+    Terminology: FHIRTerminology + Send + Sync,
+>(
+    _app_state: &AppState<Repo, Search, Terminology>,
+    _email: &str,
+) -> Result<(), OperationOutcomeError> {
+    todo!();
+}
+
+#[allow(unused)]
 #[derive(serde::Deserialize, axum_extra::routing::TypedPath)]
 #[typed_path("/signup")]
 pub struct GlobalSignupPost {}
