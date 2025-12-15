@@ -23,8 +23,8 @@ pub async fn tenant_select_get<
     _: TenantSelectGet,
     State(_app_state): State<Arc<AppState<Repo, Search, Terminology>>>,
 ) -> Result<Response, OperationOutcomeError> {
-    let signup_url = "/global/signup";
-    let action_url = "/global/tenant-select";
+    let signup_url = "/auth/signup";
+    let action_url = "/auth/tenant-select";
 
     Ok(page_html(html! {
         (banner("Enter your tenant identifier", None))
@@ -38,7 +38,7 @@ pub async fn tenant_select_get<
                         }
                         div class="col-span-1" {
                             label for="project" class="block text-sm font-medium text-slate-600" { "Project" }
-                            input type="project" id="project" class="bg-gray-50 border border-gray-300 text-slate-900 sm:text-sm rounded-lg focus:ring-orange-600 focus:border-orange-600 block w-full p-2.5 " placeholder="system" name="project" value="" {}
+                            input type="project" id="project" class="bg-gray-50 border border-gray-300 text-slate-900 sm:text-sm rounded-lg focus:ring-orange-600 focus:border-orange-600 block w-full p-2.5 " placeholder="system" name="project" {}
                         }
                     }
 
@@ -74,7 +74,9 @@ pub async fn tenant_select_post<
     Form(form): Form<TenantSelectForm>,
 ) -> Result<Response, OperationOutcomeError> {
     let tenant_id = TenantId::new(form.tenant);
-    let project_id = if let Some(project) = form.project {
+    let project_id = if let Some(project) = form.project
+        && !project.is_empty()
+    {
         ProjectId::new(project)
     } else {
         ProjectId::System
