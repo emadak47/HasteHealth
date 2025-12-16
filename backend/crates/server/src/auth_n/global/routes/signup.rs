@@ -109,11 +109,37 @@ pub async fn global_signup_post<
 ) -> Result<Response, OperationOutcomeError> {
     let user = create_or_retrieve_user_tenant(app_state.as_ref(), &form.email).await?;
 
-    send_password_reset_email(app_state.as_ref(), &user.tenant, &ProjectId::System, &user).await?;
+    send_password_reset_email(
+        app_state.as_ref(),
+        &user.tenant,
+        &ProjectId::System,
+        &user,
+        Some(html! {
+            div {
+                span {
+                    "To set your password and complete your signup, please click the button below. If you did not request this email, please ignore it."
+                }
+            }
+        }),
+    )
+    .await?;
 
     Ok(message_html(
-        &user.tenant,
+None,
         None,
-        html! {"Your user has been created. An email has been sent to you with a link to set your password."},
+        html! {
+            div {
+                span {
+                    "Welcome to Haste Health"
+                }
+            }
+            div {
+                span {
+                    r#"An email has been sent to your email address "# 
+                    span class="underline text-orange-600" { (user.email.unwrap_or("unknown".to_string())) } 
+                    r#" to reset your password"#
+                }
+            }
+        }
     ).into_response())
 }

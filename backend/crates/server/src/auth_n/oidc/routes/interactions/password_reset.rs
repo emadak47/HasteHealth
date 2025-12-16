@@ -1,5 +1,8 @@
 use crate::{
-    auth_n::{email::send_password_reset_email, oidc::utilities::set_user_password},
+    auth_n::{
+        email::send_password_reset_email,
+        oidc::{hardcoded_clients::admin_app, utilities::set_user_password},
+    },
     extract::path_tenant::{Project, ProjectIdentifier, TenantIdentifier},
     services::AppState,
     ui::pages::{self, message::message_html},
@@ -76,10 +79,10 @@ pub async fn password_reset_initiate_post<
     .await?;
 
     if let Some(user) = user_search_results.into_iter().next() {
-        send_password_reset_email(state.as_ref(), &tenant, &project, &user).await?;
+        send_password_reset_email(state.as_ref(), &tenant, &project, &user, None).await?;
 
         Ok(message_html(
-            &tenant,
+            Some(&tenant),
             Some(&project_resource.0),
             html! {"An email will arrive in the next few minutes with the next steps to reset your password."},
         ))
@@ -128,7 +131,7 @@ pub async fn password_reset_verify_get<
             ));
         }
         Ok(message_html(
-            &tenant,
+            Some(&tenant),
             Some(&project_resource),
             html! {
                 div {}
@@ -219,10 +222,20 @@ pub async fn password_reset_verify_post<
 
         set_user_password(&*state.repo, &tenant, &email, &user.id, &body.password).await?;
 
+        let admin_app_url = admin_app::redirect_url(state.config.as_ref(), &tenant, &project);
+
         Ok(message_html(
-            &tenant,
+            Some(&tenant),
             Some(&project_resource),
-            html! {"Password has been reset successfully."},
+            html! { span {
+                    "Password has been reset successfully. "
+                    @if let Some(admin_app_url) = admin_app_url {
+                        "Go to the Admin App "
+                        a class="hover:underline cursor-pointer text-orange-600" href=(admin_app_url) { "here" }
+                        "."
+                    }
+                }
+            },
         ))
     } else {
         Err(OperationOutcomeError::error(
