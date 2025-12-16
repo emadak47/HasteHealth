@@ -56,20 +56,23 @@ services:
       elasticsearch:
         condition: service_healthy
     entrypoint: ["/bin/bash"]
-    command:
-      - /haste-health server migrate all && /haste-health server tenant create --id=my-health '--owner-email=myuser@health.org' --owner-password=testing_password --subscription-tier=unlimited
+    command: >
+      -c "/haste-health server migrate all && /haste-health server tenant create --id=my-health '--owner-email=myuser@health.org' --owner-password=testing_password --subscription-tier=unlimited"
 
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/haste_health
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=elastic
       - ELASTICSEARCH_PASSWORD=elastic
+
   hastehealth-server:
     image: ghcr.io/hastehealth/hastehealth/hastehealth:latest
     platform: linux/amd64
     ports:
       - 3000:3000
     depends_on:
+      hastehealth-migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       elasticsearch: 
@@ -92,6 +95,8 @@ services:
     command:
       - worker
     depends_on:
+      hastehealth-migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       elasticsearch: 
@@ -112,4 +117,3 @@ services:
       - hastehealth-server
     environment:
       - REACT_APP_FHIR_BASE_URL=http://localhost:3000
-    
