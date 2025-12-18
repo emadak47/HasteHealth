@@ -1532,9 +1532,9 @@ dependencies = [
  "haste-jwt",
  "haste-reflect",
  "haste-repository",
- "rayon",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
 ]
 
@@ -1585,6 +1585,7 @@ dependencies = [
  "once_cell",
  "peg",
  "thiserror 2.0.17",
+ "tokio",
 ]
 
 [[package]]
