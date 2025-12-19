@@ -6,23 +6,21 @@ use crate::{
 };
 use dashmap::DashMap;
 pub use error::FHIRPathError;
-use std::{
-    collections::{HashMap, HashSet},
-    marker::PhantomData,
-    sync::{Arc, LazyLock, Mutex},
-};
-// use owning_ref::BoxRef;
 use haste_fhir_model::r4::generated::{
     resources::ResourceType,
     types::{FHIRBoolean, FHIRDecimal, FHIRInteger, FHIRPositiveInt, FHIRUnsignedInt, Reference},
 };
 use haste_reflect::MetaValue;
 use haste_reflect_derive::Reflect;
-use once_cell::sync::Lazy;
 use std::pin::Pin;
+use std::{
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+    sync::{Arc, LazyLock, Mutex},
+};
 
 /// Number types to use in FHIR evaluation
-static NUMBER_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static NUMBER_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut m = HashSet::new();
     m.insert("FHIRInteger");
     m.insert("FHIRDecimal");
@@ -33,7 +31,7 @@ static NUMBER_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     m
 });
 
-static BOOLEAN_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static BOOLEAN_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut m = HashSet::new();
     m.insert("FHIRBoolean");
     m.insert("http://hl7.org/fhirpath/System.Boolean");
@@ -41,7 +39,7 @@ static BOOLEAN_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 });
 
 #[allow(unused)]
-static DATE_TIME_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static DATE_TIME_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut m = HashSet::new();
     m.insert("FHIRDate");
     m.insert("FHIRDateTime");
@@ -54,7 +52,7 @@ static DATE_TIME_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     m
 });
 
-static STRING_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static STRING_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut m = HashSet::new();
     m.insert("FHIRBase64Binary");
     m.insert("FHIRCanonical");
@@ -808,6 +806,7 @@ async fn resolve_external_constant<'a>(
     let external_constant = match resolver {
         Some(ExternalConstantResolver::Function(func)) => {
             let result = func(name.to_string()).await;
+
             if let Some(result) = result {
                 Some(context.allocate(result))
             } else {
