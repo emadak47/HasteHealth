@@ -1,5 +1,6 @@
 [package]
 name = "haste-pointer"
+description = "Pointer utilities for Haste Health."
 version.workspace = true
 authors.workspace = true
 license.workspace = true
