@@ -31,6 +31,14 @@ impl<'a, Root: MetaValue, U: MetaValue> Pointer<'a, Root, U> {
         }
     }
 
+    pub fn root(&self) -> Pointer<'a, Root, Root> {
+        Pointer {
+            root: self.root,
+            value: self.root,
+            path: "".to_string(),
+        }
+    }
+
     pub fn path(&self) -> &str {
         self.path.as_str()
     }
