@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::context::PolicyContext;
 
+#[allow(unused)]
 pub struct PIPResult {}
 
 #[allow(unused)]
