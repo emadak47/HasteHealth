@@ -1760,6 +1760,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "haste-x-fhir-query"
+version = "0.5.0"
+dependencies = [
+ "haste-fhir-model",
+ "haste-fhir-operation-error",
+ "haste-fhirpath",
+ "haste-reflect",
+ "regex",
+ "tokio",
+]
+
+[[package]]
 name = "headers"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
