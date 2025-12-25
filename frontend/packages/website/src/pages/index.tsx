@@ -279,7 +279,7 @@ export default function Home(): ReactNode {
               </div>
               <div className="p-6 rounded-lg ">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/ai/openai">
                       <img
                         src="/img/openai_logo.svg"
@@ -288,7 +288,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/ai/claude">
                       <img
                         src="/img/claude_logo.svg"
@@ -297,7 +297,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/ai/gemini">
                       <img
                         src="/img/gemini_logo.svg"
@@ -306,7 +306,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/ai/mistral">
                       <img
                         src="/img/mistral_logo.svg"
@@ -315,7 +315,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/ai/github-copilot">
                       <img
                         src="/img/copilot_logo.svg"
@@ -324,7 +324,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4 shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4 shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/ai/deepseek">
                       <img
                         src="/img/deepseek_logo.svg"
@@ -340,7 +340,7 @@ export default function Home(): ReactNode {
             <div className="grid md:grid-cols-2  grid-cols-1 gap-4 grid-flow-row-dense auto-cols-max">
               <div className="order-2 md:order-1 p-6 rounded-lg ">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/identity_providers/okta">
                       <img
                         src="/img/okta.svg"
@@ -349,7 +349,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/identity_providers/azure">
                       <img
                         src="/img/azure.svg"
@@ -358,7 +358,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/identity_providers/auth0">
                       <img
                         src="/img/auth0.svg"
@@ -367,7 +367,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/identity_providers/haste-health">
                       <img
                         src="/img/logo.svg"
@@ -376,7 +376,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4 shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4 shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/identity_providers/keycloak">
                       <img
                         src="/img/keycloak.png"
@@ -385,7 +385,7 @@ export default function Home(): ReactNode {
                       />
                     </Link>
                   </div>
-                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-200 hover:bg-orange-100">
+                  <div className="flex justify-center items-center w-full p-4  shadow-orange-200 border border-orange-100 hover:bg-orange-100">
                     <Link to="/docs/integration/identity_providers/gcp">
                       <img
                         src="/img/gcp.png"
