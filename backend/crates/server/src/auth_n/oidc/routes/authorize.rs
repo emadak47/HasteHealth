@@ -37,6 +37,7 @@ use haste_repository::{
 };
 use std::{sync::Arc, time::Duration};
 use tower_sessions::Session;
+use tracing::warn;
 
 pub fn redirect_authorize_uri(uri: &OriginalUri, replace_path: &str) -> String {
     uri.path()
@@ -152,9 +153,11 @@ pub async fn authorize<
 
     let membership = find_membership(&*app_state.repo, &tenant, &project, &user).await?;
 
-    println!("Membership: {:?}", membership);
-
     if membership.is_none() && &user.role == &UserRole::Member {
+        warn!(
+            "User '{}' is not a member of project '{}'",
+            user.id, project
+        );
         session::user::clear_user(&current_session, &tenant)
             .await
             .map_err(|_e| {
