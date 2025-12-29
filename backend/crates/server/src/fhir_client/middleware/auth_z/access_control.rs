@@ -5,7 +5,7 @@ use crate::fhir_client::{
         ServerMiddlewareState,
     },
 };
-use haste_access_control::context::{PolicyContext, PolicyEnvironment};
+use haste_access_control::context::{PolicyContext, PolicyEnvironment, UserInfo};
 use haste_fhir_client::{
     middleware::MiddlewareChain,
     request::{FHIRRequest, FHIRResponse},
@@ -16,7 +16,7 @@ use haste_fhir_search::SearchEngine;
 use haste_fhir_terminology::FHIRTerminology;
 use haste_jwt::UserRole;
 use haste_repository::Repository;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 pub struct AccessControlMiddleware {}
 impl AccessControlMiddleware {
@@ -76,18 +76,18 @@ impl<
                         .collect();
 
                     let policy_context = haste_access_control::evaluate_policies(
-                        PolicyContext {
-                            fp_engine: haste_fhirpath::FPEngine::new(),
-                            client: context.ctx.client.clone(),
-                            client_context: context.ctx.clone(),
-                            environment: PolicyEnvironment {
+                        PolicyContext::new(
+                            context.ctx.client.clone(),
+                            context.ctx.clone(),
+                            PolicyEnvironment {
                                 tenant: context.ctx.tenant.clone(),
                                 project: context.ctx.project.clone(),
                                 request: context.request,
-                                user: context.ctx.user.clone(),
+                                user: Arc::new(UserInfo {
+                                    id: context.ctx.user.user_id.as_ref().to_string(),
+                                }),
                             },
-                            attributes: HashMap::new(),
-                        },
+                        ),
                         &policies,
                     )
                     .await?;

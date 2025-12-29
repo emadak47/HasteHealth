@@ -657,7 +657,10 @@ async fn evaluate_operation<'a>(
         }
         Operation::Equal(left, right) => {
             operation_1(left, right, context, config, |left, right| {
-                let are_equal = equal_check(&left, &right)?;
+                let are_equal = FHIRBoolean {
+                    value: Some(equal_check(&left, &right)?),
+                    ..Default::default()
+                };
                 Ok(left
                     .new_context_from(vec![left.allocate(ResolvedValue::Box(Box::new(are_equal)))]))
             })
@@ -665,10 +668,12 @@ async fn evaluate_operation<'a>(
         }
         Operation::NotEqual(left, right) => {
             operation_1(left, right, context, config, |left, right| {
-                let are_equal = equal_check(&left, &right)?;
-                Ok(left.new_context_from(vec![
-                    left.allocate(ResolvedValue::Box(Box::new(!are_equal))),
-                ]))
+                let not_equal = FHIRBoolean {
+                    value: Some(!equal_check(&left, &right)?),
+                    ..Default::default()
+                };
+                Ok(left
+                    .new_context_from(vec![left.allocate(ResolvedValue::Box(Box::new(not_equal)))]))
             })
             .await
         }
@@ -784,6 +789,7 @@ fn evaluate_expression<'a>(
     })
 }
 
+#[derive(Debug)]
 pub enum ResolvedValue {
     Box(Box<dyn MetaValue>),
     Arc(Arc<dyn MetaValue>),
@@ -1251,53 +1257,108 @@ mod tests {
         // String tests
         let string_equal = engine.evaluate("'test' = 'test'", vec![]).await.unwrap();
         for r in string_equal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
             assert_eq!(b, true);
         }
         let string_unequal = engine.evaluate("'invalid' = 'test'", vec![]).await.unwrap();
         for r in string_unequal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
             assert_eq!(b, false);
         }
 
         // Number tests
         let number_equal = engine.evaluate("12 = 12", vec![]).await.unwrap();
         for r in number_equal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
             assert_eq!(b, true);
         }
         let number_unequal = engine.evaluate("13 = 12", vec![]).await.unwrap();
         for r in number_unequal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
             assert_eq!(b, false);
         }
 
         // Boolean tests
         let bool_equal = engine.evaluate("false = false", vec![]).await.unwrap();
         for r in bool_equal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
             assert_eq!(b, true);
         }
         let bool_unequal = engine.evaluate("false = true", vec![]).await.unwrap();
         for r in bool_unequal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
             assert_eq!(b, false);
         }
 
         // Nested Equality tests
         let bool_equal = engine.evaluate("12 = 13 = false", vec![]).await.unwrap();
         for r in bool_equal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
             assert_eq!(b, true);
         }
         let bool_unequal = engine.evaluate("12 = 13 = true", vec![]).await.unwrap();
         for r in bool_unequal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
             assert_eq!(b, false);
         }
         let bool_unequal = engine.evaluate("12 = (13 - 1)", vec![]).await.unwrap();
         for r in bool_unequal.iter() {
-            let b: bool = r.as_any().downcast_ref::<bool>().unwrap().clone();
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
+
             assert_eq!(b, true);
         }
     }
@@ -1828,8 +1889,6 @@ mod tests {
             .downcast_ref::<FHIRString>()
             .unwrap();
 
-        println!("Value: {:?}", value);
-
         assert_eq!(value.value.as_ref(), Some(&"Paul".to_string()));
     }
 
@@ -1875,8 +1934,6 @@ mod tests {
             .as_any()
             .downcast_ref::<FHIRString>()
             .unwrap();
-
-        println!("Value: {:?}", value);
 
         assert_eq!(value.value.as_ref(), Some(&"Paul".to_string()));
     }

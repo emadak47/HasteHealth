@@ -11,6 +11,7 @@ use std::sync::Arc;
 use crate::{
     context::{PermissionLevel, PermissionLevelError, PolicyContext},
     engine::rule_engine::expression::evaluate_expression,
+    utilities::{get_max, get_min},
 };
 
 #[derive(Debug, OperationOutcomeError)]
@@ -22,18 +23,6 @@ pub enum PDPError {
 }
 
 type PolicyResult<T, Context> = (T, Context);
-
-fn get_max(p1: &PermissionLevel, p2: &PermissionLevel) -> Result<PermissionLevel, PDPError> {
-    let max = std::cmp::max(i8::from(p1), i8::from(p2));
-
-    PermissionLevel::try_from(max).map_err(PDPError::InvalidPermissionLevel)
-}
-
-fn get_min(p1: &PermissionLevel, p2: &PermissionLevel) -> Result<PermissionLevel, PDPError> {
-    let min = std::cmp::min(i8::from(p1), i8::from(p2));
-
-    PermissionLevel::try_from(min).map_err(PDPError::InvalidPermissionLevel)
-}
 
 async fn should_evaluate_rule<
     'a,
@@ -57,7 +46,10 @@ async fn should_evaluate_rule<
     if values.len() != 1 {
         return Err(OperationOutcomeError::fatal(
             haste_fhir_model::r4::generated::terminology::IssueType::Invalid(None),
-            "Target expression did not evaluate to a single boolean value.".to_string(),
+            format!(
+                "Target expression at '{}' did not evaluate to a single value.",
+                pointer.path()
+            ),
         ));
     }
 
@@ -68,7 +60,10 @@ async fn should_evaluate_rule<
     else {
         return Err(OperationOutcomeError::fatal(
             haste_fhir_model::r4::generated::terminology::IssueType::Invalid(None),
-            "Target expression did not evaluate to a boolean value.".to_string(),
+            format!(
+                "Target expression did not evaluate to a boolean value it resolved to '{}'",
+                values[0].typename()
+            ),
         ));
     };
 
@@ -313,7 +308,7 @@ pub async fn evaluate<
 ) -> Result<PermissionLevel, OperationOutcomeError> {
     let pointer = Pointer::<AccessPolicyV2, AccessPolicyV2>::new(policy.clone());
     let rules_pointer = pointer
-        .descend::<Option<Vec<AccessPolicyV2Rule>>>(&haste_pointer::Key::Field("rule".to_string()))
+        .descend::<Vec<AccessPolicyV2Rule>>(&haste_pointer::Key::Field("rule".to_string()))
         .ok_or_else(|| PDPError::PointerError("rule".to_string()))?;
 
     let mut result = PermissionLevel::Deny;
