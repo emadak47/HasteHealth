@@ -8,8 +8,8 @@ jobs:
   gcp_test:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      issues: write
+      contents: "read"
+      id-token: "write"
     steps:
       - uses: "google-github-actions/auth@v3"
         with:
