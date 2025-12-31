@@ -5,10 +5,13 @@ on:
     branches: ["main"]
 
 jobs:
-  rust_book:
+  gcp_test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: "google-github-actions/auth@v3"
         with:
-          project_id: secrets.GCP_PROJECT_ID
-          workload_identity_provider: secrets.GCP_WORKLOAD_IDENTITY_PROVIDER
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
