@@ -1,4 +1,4 @@
-name: Docker Release
+name: Release Docker
 on:
   release:
     types: [published]
@@ -10,11 +10,12 @@ env:
 
 jobs:
   server:
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: read
-
+      id-token: "write"
     steps:
       - uses: actions/checkout@v5
       - name: Set up Docker Buildx
@@ -23,13 +24,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u $ --password-stdin
+      - uses: "google-github-actions/auth@v3"
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v3"
+      - name: "Docker auth"
+        run: |-
+          gcloud auth configure-docker ${{ vars.GAR_LOCATION }}-docker.pkg.dev
       - name: Build and Publish Image
         run: |
           IMAGE_NAME=$(echo $SERVER_IMAGE_NAME | tr '[A-Z]' '[a-z]')
           IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+          GCP_IMAGE_ID=${{ vars.GAR_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${{vars.GAR_REPOSITORY}}/hastehealth
+
           # This changes all uppercase characters to lowercase.
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-
+          GCP_IMAGE_ID=$(echo $GCP_IMAGE_ID | tr '[A-Z]' '[a-z]')
 
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$GITHUB_REF_NAME
@@ -38,11 +50,15 @@ jobs:
           docker buildx build . \
            --file=docker/haste-health.dockerfile \
            --platform linux/amd64 \
+           --tag "$GCP_IMAGE_ID:latest \
+           --tag "$GCP_IMAGE_ID:$GITHUB_REF_NAME \
            --tag $IMAGE_ID:$GITHUB_REF_NAME \
            --tag $IMAGE_ID:latest \
            --label "runnumber=${GITHUB_RUN_ID}" \
            --push
+
   admin-app:
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       packages: write
