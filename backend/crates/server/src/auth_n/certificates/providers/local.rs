@@ -57,8 +57,10 @@ fn get_sorted_private_cert_paths(config: &dyn Config<ServerEnvironmentVariables>
             .split("_")
             .collect::<Vec<&str>>();
 
-        let date_a = chrono::DateTime::parse_from_rfc3339(a_chunks.get(1).unwrap()).unwrap();
-        let date_b = chrono::DateTime::parse_from_rfc3339(b_chunks.get(1).unwrap()).unwrap();
+        let date_a =
+            chrono::NaiveDate::parse_from_str(a_chunks.get(1).unwrap(), "%Y-%m-%d").unwrap();
+        let date_b =
+            chrono::NaiveDate::parse_from_str(b_chunks.get(1).unwrap(), "%Y-%m-%d").unwrap();
 
         // latest first.
         date_b.cmp(&date_a)
@@ -163,8 +165,8 @@ fn create_certifications_if_needed(
         let date = chrono::Utc::now();
         let date2 = date + chrono::Days::new(5);
 
-        let private_key_file_name1 = format!("k1_{}.pem", date.to_rfc3339());
-        let private_key_file_name2 = format!("k2_{}.pem", date2.to_rfc3339());
+        let private_key_file_name1 = format!("k1_{}.pem", date.format("%Y-%m-%d"));
+        let private_key_file_name2 = format!("k2_{}.pem", date2.format("%Y-%m-%d"));
 
         let priv_key1 = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
         let priv_key2 = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
