@@ -6,11 +6,6 @@ CREATE TYPE code_type AS ENUM (
     'oauth2_code_grant',
     'refresh_token'
 );
-ALTER TYPE code_type OWNER TO postgres;
-
---
--- Name: fhir_method; Type: TYPE; Schema: public; Owner: postgres
---
 
 CREATE TYPE fhir_method AS ENUM (
     'update',
@@ -18,13 +13,6 @@ CREATE TYPE fhir_method AS ENUM (
     'delete',
     'create'
 );
-
-
-ALTER TYPE fhir_method OWNER TO postgres;
-
---
--- Name: fhir_version; Type: TYPE; Schema: public; Owner: postgres
---
 
 CREATE TYPE fhir_version AS ENUM (
     'r4',
@@ -61,8 +49,6 @@ CREATE FUNCTION public.generate_fhir_instant_string(tstamp timestamp with time z
      END;
 $$;
 
-ALTER FUNCTION proc_update_resource_meta() OWNER TO postgres;
-
 CREATE TABLE resources (
     id text GENERATED ALWAYS AS ((resource ->> 'id'::text)) STORED NOT NULL,
     tenant text NOT NULL,
@@ -80,8 +66,6 @@ CREATE TABLE resources (
     sequence bigint NOT NULL
 );
 
-ALTER TABLE resources OWNER TO postgres;
-
 CREATE SEQUENCE resources_sequence_seq
     START WITH 1
     INCREMENT BY 1
@@ -89,7 +73,6 @@ CREATE SEQUENCE resources_sequence_seq
     NO MAXVALUE
     CACHE 1;
 
-ALTER SEQUENCE resources_sequence_seq OWNER TO postgres;
 ALTER SEQUENCE resources_sequence_seq OWNED BY resources.sequence;    
 ALTER TABLE ONLY resources ALTER COLUMN sequence SET DEFAULT nextval('resources_sequence_seq'::regclass);
 ALTER TABLE ONLY resources

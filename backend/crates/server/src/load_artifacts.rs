@@ -163,9 +163,9 @@ pub async fn load_artifacts(
     }
 
     println!(
-        "Done loading artifacts. {} {}",
+        "Loaded a total of '{}' artifacts with unique hashes '{}'",
+        ARTIFACT_RESOURCES.len(),
         hashes.len(),
-        ARTIFACT_RESOURCES.len()
     );
 
     Ok(())
