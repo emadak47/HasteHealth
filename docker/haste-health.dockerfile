@@ -16,7 +16,7 @@ FROM debian:bookworm-slim
 
 COPY --from=stage /app/target/release/haste-health /haste-health
 
-RUN apt update && apt install -y openssl pkg-config libssl-dev && apt clean
+RUN apt update && apt install -y ca-certificates openssl pkg-config libssl-dev && apt clean
 
 ENTRYPOINT ["/haste-health"]
 
