@@ -20,6 +20,15 @@ use maud::{Markup, html};
 use sendgrid::v3::{Content, Email, Message, Personalization, Sender};
 use url::Url;
 
+fn report(mut err: &dyn std::error::Error) -> String {
+    let mut s = format!("{}", err);
+    while let Some(src) = err.source() {
+        s = format!("{}\n\nCaused by: {}", s, src);
+        err = src;
+    }
+    s
+}
+
 pub async fn send_email(
     config: &dyn Config<ServerEnvironmentVariables>,
     to: &str,
@@ -37,6 +46,7 @@ pub async fn send_email(
 
     let resp = sender.send(&m).await.map_err(|e| {
         tracing::error!("Failed to send email '{}'", e);
+        tracing::error!("{}", report(&e));
         OperationOutcomeError::fatal(
             IssueType::Exception(None),
             "Failed to send email".to_string(),
