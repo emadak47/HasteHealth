@@ -136,6 +136,19 @@ const config: Config = {
           className: "header-github-link",
           position: "right",
         },
+        {
+          to: "https://api.haste.health/auth/tenant-select",
+          label: "Log in",
+          position: "right",
+          className: "signup-link",
+        },
+        {
+          to: "https://api.haste.health/auth/signup",
+          label: "Start for free",
+          position: "right",
+          className:
+            "text-white bg-orange-600 hover:bg-orange-500 rounded-4xl px-4 py-2",
+        },
       ],
     },
     footer: {
