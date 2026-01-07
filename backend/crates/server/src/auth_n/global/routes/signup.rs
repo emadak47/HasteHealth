@@ -39,10 +39,10 @@ pub async fn global_signup_get<
     State(_app_state): State<Arc<AppState<Repo, Search, Terminology>>>,
 ) -> Result<Response, OperationOutcomeError> {
     Ok(page_html(html! {
-        (banner("Sign Up", None))
+        (banner("Sign up", None))
         div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0  sm:max-w-md" {
-            form class="space-y-4 md:space-y-6" action=("/auth/signup") method="POST" {
-                div class="grid grid-cols-4 gap-1 space-y-4 p-6 sm:p-8" {                
+            form class="space-y-4 p-6 sm:p-8" action=("/auth/signup") method="POST" {
+                div class="grid grid-cols-4 gap-1 space-y-1" {                
                     div class="col-span-4" {
                         label for="email" class="block text-sm font-medium text-slate-600 dark:text-white" {
                             "Email address"
@@ -59,11 +59,10 @@ pub async fn global_signup_get<
                         label for="last-name" class="block text-sm font-medium text-slate-600" { "Last name" }
                         input id="last-name" class="bg-gray-50 border border-gray-300 text-slate-900 sm:text-sm rounded-lg focus:ring-orange-600 focus:border-orange-600 block w-full p-2.5 " required name="last-name" {}
                     }
-
-                    div class="col-span-4" {
-                        button type="submit" class="w-full text-white bg-orange-500 hover:bg-orange-500 focus:ring-4 focus:outline-none focus:ring-orange-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center" {
-                            "Continue"
-                        }
+                }
+                div class="flex w-full" {
+                    button type="submit" class="w-full text-white bg-orange-500 hover:bg-orange-500 focus:ring-4 focus:outline-none focus:ring-orange-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center" {
+                        "Continue"
                     }
                 }
             }
