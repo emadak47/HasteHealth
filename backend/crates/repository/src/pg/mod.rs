@@ -13,10 +13,12 @@ mod fhir;
 mod membership;
 mod migrate;
 mod project;
+mod rate_limit;
 mod scope;
 mod system;
 mod tenant;
 mod user;
+mod utilities;
 
 #[derive(OperationOutcomeError, Debug)]
 pub enum StoreError {

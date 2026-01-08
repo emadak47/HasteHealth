@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use haste_fhir_client::request::FHIRRequest;
 use haste_fhir_model::r4::generated::{resources::Bundle, terminology::HttpVerb};
 use haste_jwt::claims::SubscriptionTier;
@@ -44,7 +45,7 @@ fn score_bundle(bundle: &Bundle) -> u32 {
     total_points
 }
 
-pub fn points_for_operation(request: &FHIRRequest) -> u32 {
+fn points_for_operation(request: &FHIRRequest) -> u32 {
     match request {
         FHIRRequest::Read(_) => READ_POINTS,
         FHIRRequest::VersionRead(_) => READ_POINTS,
