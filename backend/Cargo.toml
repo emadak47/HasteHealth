@@ -33,15 +33,17 @@ members = [
     "crates/indexing-worker",
     "crates/jwt",
     "crates/macro-loads",
-    "crates/pointer", "crates/rate-limit",
+    "crates/pointer",
+    "crates/rate-limit",
     "crates/reflect",
     "crates/reflect-derive",
     "crates/repository",
-    "crates/server", "crates/x-fhir-query",
+    "crates/server",
+    "crates/x-fhir-query",
 ]
 
 [workspace.package]
-version = "0.7.1"
+version = "0.7.2"
 authors = ["Haste Health"]
 license = "BSD-3-Clause"
 homepage = "https://haste.health"
