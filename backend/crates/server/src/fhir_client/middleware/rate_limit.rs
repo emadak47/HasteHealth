@@ -19,7 +19,7 @@ use haste_rate_limit::RateLimitError;
 use haste_repository::Repository;
 use std::sync::Arc;
 
-static INVOCATION_POINTS: u32 = 100;
+static INVOCATION_POINTS: u32 = 10;
 static WRITE_POINTS: u32 = 50;
 static SEARCH_POINTS: u32 = 10;
 static READ_POINTS: u32 = 10;
