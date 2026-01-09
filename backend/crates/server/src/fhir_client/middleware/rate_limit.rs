@@ -37,9 +37,15 @@ static DEFAULT_INVOCATION_POINTS: u32 = 10;
 
 static OPERATION_POINTS: LazyLock<OperationScoringPoints> = LazyLock::new(|| {
     let config = get_config(ConfigType::Environment);
-    let scoring_points = config
-        .get(ServerEnvironmentVariables::RateLimitOperationPoints)
-        .unwrap_or("".to_string());
+    let Ok(scoring_points) = config.get(ServerEnvironmentVariables::RateLimitOperationPoints)
+    else {
+        return OperationScoringPoints {
+            read: DEFAULT_READ_POINTS,
+            write: DEFAULT_WRITE_POINTS,
+            search: DEFAULT_SEARCH_POINTS,
+            invocation: DEFAULT_INVOCATION_POINTS,
+        };
+    };
 
     let format_error_message = "FORMAT ERROR: Rate limit operation points must be in the format read,write,search,invocation where each is a positive integer";
 
@@ -85,9 +91,16 @@ struct SubscriptionTiers {
 
 static SUBSCRIPTION_TIERS: LazyLock<SubscriptionTiers> = LazyLock::new(|| {
     let config = get_config(ConfigType::Environment);
-    let subscription_tiers_rate_limit = config
-        .get(ServerEnvironmentVariables::RateLimitSubscriptions)
-        .unwrap_or("".to_string());
+    let Ok(subscription_tiers_rate_limit) =
+        config.get(ServerEnvironmentVariables::RateLimitSubscriptions)
+    else {
+        return SubscriptionTiers {
+            free: DEFAULT_FREE_TIER,
+            professional: DEFAULT_PRO_TIER,
+            team: DEFAULT_TEAM_TIER,
+            unlimited: u32::MAX,
+        };
+    };
 
     let format_error_message = "FORMAT ERROR: Rate limit subscription tiers must be in the format free,professional,team where each is a positive integer";
 
