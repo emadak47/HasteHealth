@@ -20,8 +20,8 @@ use haste_repository::Repository;
 use std::sync::Arc;
 
 static INVOCATION_POINTS: u32 = 100;
-static WRITE_POINTS: u32 = 100;
-static SEARCH_POINTS: u32 = 30;
+static WRITE_POINTS: u32 = 50;
+static SEARCH_POINTS: u32 = 10;
 static READ_POINTS: u32 = 10;
 
 static DAY_IN_SECONDS: u32 = 60 * 60 * 24; // 1 day in seconds
