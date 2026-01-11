@@ -3,6 +3,7 @@ import Link from "@docusaurus/Link";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
+import HealthcareDataFlow from "../components/HealthcareDataFlow";
 
 function DescriptionColumn(
   props: Readonly<{
@@ -102,6 +103,11 @@ export default function Home(): ReactNode {
                 >
                   Getting Started - 5min ⏱️
                 </Link>
+              </div>
+              <div className="hidden lg:block">
+                <div className="pb-16 pt-12">
+                  <HealthcareDataFlow />
+                </div>
               </div>
             </header>
             <BorderBlock />
