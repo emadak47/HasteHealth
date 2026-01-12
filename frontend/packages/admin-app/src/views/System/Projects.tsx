@@ -155,16 +155,19 @@ function ProjectUpdateModal({
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const client = useAtomValue(getClient);
+  const [loading, setLoading] = useState(true);
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openUpdateModalId, setOpenUpdateIdModal] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
+    setLoading(true);
     client
       .search_type({}, R4, "Project", [
         { name: "_sort", value: ["_lastUpdated"] },
       ])
       .then((res) => {
+        setLoading(false);
         setProjects(res.resources);
       });
   }, []);
@@ -206,7 +209,10 @@ export default function Projects() {
               Create
             </Button>
           </div>
-          {projects.length === 0 ? (
+
+          {loading ? (
+            <Loading />
+          ) : projects.length === 0 ? (
             <div className="shadow-md">
               <p className="text-lg mb-8 text-center">
                 It looks like you don't have any projects yet. Click the button
