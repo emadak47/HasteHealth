@@ -7,20 +7,32 @@ use haste_fhir_client::{
 };
 use haste_fhir_model::r4::generated::{
     resources::{
-        Resource, ResourceType, TestReport, TestReportSetup, TestReportSetupAction, TestReportTest,
-        TestReportTestAction, TestScript, TestScriptFixture, TestScriptSetup,
-        TestScriptSetupActionAssert, TestScriptSetupActionOperation, TestScriptTest,
-        TestScriptTestAction,
+        Resource, ResourceType, TestReport, TestReportSetup, TestReportSetupAction,
+        TestReportSetupActionAssert, TestReportSetupActionOperation, TestReportTeardown,
+        TestReportTeardownAction, TestReportTest, TestReportTestAction, TestScript,
+        TestScriptFixture, TestScriptSetup, TestScriptSetupAction, TestScriptSetupActionAssert,
+        TestScriptSetupActionOperation, TestScriptTeardown, TestScriptTeardownAction,
+        TestScriptTest, TestScriptTestAction,
     },
-    terminology::{IssueType, ReportResultCodes, TestscriptOperationCodes},
-    types::{FHIRString, Reference},
+    terminology::{
+        AssertOperatorCodes, IssueType, ReportActionResultCodes, ReportResultCodes,
+        TestscriptOperationCodes,
+    },
+    types::{FHIRMarkdown, FHIRString, Reference},
 };
 use haste_fhir_operation_error::OperationOutcomeError;
 use haste_pointer::{Key, Pointer};
 use haste_reflect::MetaValue;
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, LazyLock},
+};
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, warn};
+
+use crate::conversion::ConvertedValue;
+
+mod conversion;
 
 pub enum TestScriptError {
     ExecutionError(String),
@@ -38,13 +50,44 @@ enum Fixtures {
 }
 
 // Internal structure to hold current test result and testing fixtures.
-#[derive(Debug)]
 struct TestState {
+    fp_engine: haste_fhirpath::FPEngine,
     #[allow(dead_code)]
     result: ReportResultCodes,
     fixtures: HashMap<String, Fixtures>,
     latest_request: Option<FHIRRequest>,
     latest_response: Option<FHIRResponse>,
+}
+
+impl TestState {
+    fn new() -> Self {
+        TestState {
+            fp_engine: haste_fhirpath::FPEngine::new(),
+            result: ReportResultCodes::Pending(None),
+            fixtures: HashMap::new(),
+            latest_request: None,
+            latest_response: None,
+        }
+    }
+    fn resolve_fixture<'a>(
+        &'a self,
+        fixture_id: &str,
+    ) -> Result<&'a dyn MetaValue, TestScriptError> {
+        let fixture = self
+            .fixtures
+            .get(fixture_id)
+            .ok_or(TestScriptError::FixtureNotFound)?;
+
+        match fixture {
+            Fixtures::Resource(res) => Ok(res),
+            Fixtures::Request(req) => {
+                request_to_meta_value(req).ok_or_else(|| TestScriptError::InvalidFixture)
+            }
+            Fixtures::Response(response) => {
+                response_to_meta_value(response).ok_or_else(|| TestScriptError::InvalidFixture)
+            }
+        }
+    }
 }
 
 struct TestResult<T> {
@@ -106,36 +149,6 @@ fn request_to_meta_value<'a>(request: &'a FHIRRequest) -> Option<&'a dyn MetaVal
         | FHIRRequest::Capabilities
         | FHIRRequest::Search(_)
         | FHIRRequest::History(_) => None,
-    }
-}
-
-impl TestState {
-    fn new() -> Self {
-        TestState {
-            result: ReportResultCodes::Pending(None),
-            fixtures: HashMap::new(),
-            latest_request: None,
-            latest_response: None,
-        }
-    }
-    fn resolve_fixture<'a>(
-        &'a self,
-        fixture_id: &str,
-    ) -> Result<&'a dyn MetaValue, TestScriptError> {
-        let fixture = self
-            .fixtures
-            .get(fixture_id)
-            .ok_or(TestScriptError::FixtureNotFound)?;
-
-        match fixture {
-            Fixtures::Resource(res) => Ok(res),
-            Fixtures::Request(req) => {
-                request_to_meta_value(req).ok_or_else(|| TestScriptError::InvalidFixture)
-            }
-            Fixtures::Response(response) => {
-                response_to_meta_value(response).ok_or_else(|| TestScriptError::InvalidFixture)
-            }
-        }
     }
 }
 
@@ -235,7 +248,7 @@ async fn run_operation<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
     ctx: CTX,
     state: Arc<Mutex<TestState>>,
     pointer: Pointer<TestScript, TestScriptSetupActionOperation>,
-) -> Result<Arc<Mutex<TestState>>, TestScriptError> {
+) -> Result<TestResult<TestReportSetupActionOperation>, TestScriptError> {
     let operation = pointer.value().ok_or_else(|| {
         TestScriptError::ExecutionError(format!(
             "Failed to retrieve TestScript operation at '{}'.",
@@ -246,16 +259,39 @@ async fn run_operation<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
     let mut state_guard = state.lock().await;
     let fhir_request = testscript_operation_to_fhir_request(&state_guard, operation)?;
 
-    let fhir_response = client
-        .request(ctx, fhir_request.clone())
-        .await
-        .map_err(|e| TestScriptError::OperationError(e))?;
+    let fhir_response = client.request(ctx, fhir_request.clone()).await;
 
-    associate_request_response_variables(&mut state_guard, operation, fhir_request, fhir_response);
+    match fhir_response {
+        Ok(fhir_response) => {
+            associate_request_response_variables(
+                &mut state_guard,
+                operation,
+                fhir_request,
+                fhir_response,
+            );
 
-    drop(state_guard);
+            drop(state_guard);
 
-    Ok(state)
+            Ok(TestResult {
+                state: state.clone(),
+                value: TestReportSetupActionOperation {
+                    result: Box::new(ReportActionResultCodes::Pass(None)),
+                    ..Default::default()
+                },
+            })
+        }
+        Err(op_error) => Ok(TestResult {
+            state: state.clone(),
+            value: TestReportSetupActionOperation {
+                result: Box::new(ReportActionResultCodes::Fail(None)),
+                message: Some(Box::new(FHIRMarkdown {
+                    value: Some(format!("Operation failed: {}", op_error)),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            },
+        }),
+    }
 }
 
 async fn get_source<'a>(
@@ -294,10 +330,89 @@ async fn get_source<'a>(
     }
 }
 
+fn evaluate_operator(
+    operator: &Box<AssertOperatorCodes>,
+    a: &Vec<conversion::ConvertedValue>,
+    b: &Vec<conversion::ConvertedValue>,
+) -> bool {
+    match operator.as_ref() {
+        AssertOperatorCodes::Equals(_) | AssertOperatorCodes::Null(_) => a == b,
+
+        AssertOperatorCodes::Contains(_) => todo!(),
+        AssertOperatorCodes::Empty(_) => todo!(),
+        AssertOperatorCodes::Eval(_) => todo!(),
+        AssertOperatorCodes::GreaterThan(_) => todo!(),
+        AssertOperatorCodes::In(_) => todo!(),
+        AssertOperatorCodes::LessThan(_) => todo!(),
+        AssertOperatorCodes::NotContains(_) => todo!(),
+        AssertOperatorCodes::NotEmpty(_) => todo!(),
+        AssertOperatorCodes::NotEquals(_) => todo!(),
+        AssertOperatorCodes::NotIn(_) => todo!(),
+    }
+    // a == b
+}
+
+static DEFAULT_EQUAL_OPERATOR: LazyLock<Box<AssertOperatorCodes>> =
+    LazyLock::new(|| Box::new(AssertOperatorCodes::Equals(None)));
+
+async fn derive_comparison_to(
+    state: &TestState,
+    assertion: &TestScriptSetupActionAssert,
+) -> Result<Vec<ConvertedValue>, TestScriptError> {
+    if let Some(comparision_fixture_id) = assertion
+        .compareToSourceId
+        .as_ref()
+        .and_then(|c| c.value.as_ref())
+    {
+        let comparison_fixture = state.resolve_fixture(comparision_fixture_id)?;
+
+        let Some(comparison_expression) = assertion
+            .compareToSourceExpression
+            .as_ref()
+            .and_then(|exp| exp.value.as_ref())
+        else {
+            return Err(TestScriptError::ExecutionError(
+                "compareToSourceExpression is required when compareToSourceId is provided."
+                    .to_string(),
+            ));
+        };
+
+        let result = state
+            .fp_engine
+            .evaluate(comparison_expression, vec![comparison_fixture])
+            .await
+            .map_err(|e| {
+                TestScriptError::ExecutionError(format!(
+                    "FHIRPath evaluation error for comparison fixture '{}': {}",
+                    comparision_fixture_id, e
+                ))
+            })?;
+
+        result
+            .iter()
+            .map(|d| {
+                conversion::convert_meta_value(d).ok_or_else(|| {
+                    TestScriptError::ExecutionError(
+                        "Failed to convert comparison fixture value.".to_string(),
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, TestScriptError>>()
+    } else if let Some(value) = assertion.value.as_ref().and_then(|v| v.value.as_ref())
+        && let Some(converted_value) = conversion::convert_string_value(value.as_ref())
+    {
+        Ok(vec![converted_value])
+    } else {
+        Err(TestScriptError::ExecutionError(
+            "Failed to derive comparison value for assertion.".to_string(),
+        ))
+    }
+}
+
 async fn run_assertion(
     state: Arc<Mutex<TestState>>,
     pointer: Pointer<TestScript, TestScriptSetupActionAssert>,
-) -> Result<Arc<Mutex<TestState>>, TestScriptError> {
+) -> Result<TestResult<TestReportSetupActionAssert>, TestScriptError> {
     let assertion = pointer.value().ok_or_else(|| {
         TestScriptError::ExecutionError(format!(
             "Failed to retrieve TestScript assertion at '{}'.",
@@ -307,19 +422,96 @@ async fn run_assertion(
 
     let state_guard = state.lock().await;
 
-    let Some(_source) = get_source(&*state_guard, assertion).await? else {
+    let Some(source) = get_source(&*state_guard, assertion).await? else {
         return Err(TestScriptError::ExecutionError(
             "Failed to resolve source for assertion.".to_string(),
         ));
     };
 
-    let _engine = haste_fhirpath::FPEngine::new();
-    // let result = engine.evaluate("$this", vec![source]).await;
+    let operator = assertion
+        .operator
+        .as_ref()
+        .unwrap_or(&*DEFAULT_EQUAL_OPERATOR);
 
-    if assertion.resource.is_some() {}
-    if assertion.expression.is_some() {}
+    if assertion.resource.is_some() {
+        let resource_string = assertion
+            .resource
+            .as_ref()
+            .and_then(|r| {
+                let string_type: Option<String> = r.as_ref().into();
+                string_type
+            })
+            .unwrap_or("".to_string());
 
-    todo!();
+        let operation_evaluation_result = evaluate_operator(
+            operator,
+            &vec![conversion::ConvertedValue::String(resource_string)],
+            &vec![conversion::ConvertedValue::String(
+                source.typename().to_string(),
+            )],
+        );
+        if !operation_evaluation_result {
+            warn!(
+                "Assertion at '{}' failed: resource type does not match.",
+                pointer.path()
+            );
+            return Ok(TestResult {
+                state: state.clone(),
+                value: TestReportSetupActionAssert {
+                    result: Box::new(ReportActionResultCodes::Fail(None)),
+                    ..Default::default()
+                },
+            });
+        }
+    }
+    if let Some(expression) = assertion.expression.as_ref().and_then(|e| e.value.as_ref()) {
+        let comparison_to = derive_comparison_to(&state_guard, assertion).await;
+
+        let Ok(result) = state_guard
+            .fp_engine
+            .evaluate(expression, vec![source])
+            .await
+        else {
+            warn!(
+                "Assertion at '{}' failed: FHIRPath evaluation error.",
+                pointer.path()
+            );
+            return Err(TestScriptError::ExecutionError(format!(
+                "FHIRPath failed to evaluate at '{}' error.",
+                pointer.path()
+            )));
+        };
+
+        let converted_values = result
+            .iter()
+            .filter_map(|v| conversion::convert_meta_value(v))
+            .collect::<Vec<_>>();
+
+        let operation_evaluation_result =
+            evaluate_operator(operator, &converted_values, &comparison_to?);
+
+        if !operation_evaluation_result {
+            warn!(
+                "Assertion at '{}' failed: operator evaluation failed.",
+                pointer.path()
+            );
+            return Ok(TestResult {
+                state: state.clone(),
+                value: TestReportSetupActionAssert {
+                    result: Box::new(ReportActionResultCodes::Fail(None)),
+                    ..Default::default()
+                },
+            });
+        }
+    }
+
+    return Ok(TestResult {
+        state: state.clone(),
+        value: TestReportSetupActionAssert {
+            result: Box::new(ReportActionResultCodes::Pass(None)),
+            ..Default::default()
+        },
+    });
 }
 
 async fn run_action<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
@@ -349,11 +541,12 @@ async fn run_action<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
             )));
         };
 
-        let state = run_operation(client, ctx, state, operation_pointer).await?;
+        let result = run_operation(client, ctx, state, operation_pointer).await?;
 
         Ok(TestResult {
-            state,
+            state: result.state,
             value: TestReportSetupAction {
+                operation: Some(result.value),
                 ..Default::default()
             },
         })
@@ -367,11 +560,75 @@ async fn run_action<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
             )));
         };
 
-        let state = run_assertion(state, assertion_pointer).await?;
+        let assertion = run_assertion(state, assertion_pointer).await?;
 
         Ok(TestResult {
-            state,
+            state: assertion.state,
             value: TestReportSetupAction {
+                assert: Some(assertion.value),
+                ..Default::default()
+            },
+        })
+    } else {
+        Err(TestScriptError::ExecutionError(format!(
+            "TestScript action must have either an operation or an assert at '{}'.",
+            pointer.path()
+        )))
+    }
+}
+
+async fn run_setup_action<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
+    client: &Client,
+    ctx: CTX,
+    state: Arc<Mutex<TestState>>,
+    pointer: Pointer<TestScript, TestScriptSetupAction>,
+) -> Result<TestResult<TestReportSetupAction>, TestScriptError> {
+    let action = pointer.value().ok_or_else(|| {
+        TestScriptError::ExecutionError(format!(
+            "Failed to retrieve TestScript action at '{}'.",
+            pointer.path()
+        ))
+    })?;
+
+    info!("Running TestScript action at path: {}", pointer.path());
+
+    // Should be either an operation or an assert.
+    // Both should not exist at the same time.
+    if action.operation.is_some() {
+        let Some(operation_pointer) =
+            pointer.descend::<TestScriptSetupActionOperation>(&Key::Field("operation".to_string()))
+        else {
+            return Err(TestScriptError::ExecutionError(format!(
+                "Failed to retrieve TestScript operation at '{}'.",
+                pointer.path()
+            )));
+        };
+
+        let result = run_operation(client, ctx, state, operation_pointer).await?;
+
+        Ok(TestResult {
+            state: result.state,
+            value: TestReportSetupAction {
+                operation: Some(result.value),
+                ..Default::default()
+            },
+        })
+    } else if action.assert.is_some() {
+        let Some(assertion_pointer) =
+            pointer.descend::<TestScriptSetupActionAssert>(&Key::Field("assert".to_string()))
+        else {
+            return Err(TestScriptError::ExecutionError(format!(
+                "Failed to retrieve TestScript assertion at '{}'.",
+                pointer.path()
+            )));
+        };
+
+        let assertion = run_assertion(state, assertion_pointer).await?;
+
+        Ok(TestResult {
+            state: assertion.state,
+            value: TestReportSetupAction {
+                assert: Some(assertion.value),
                 ..Default::default()
             },
         })
@@ -502,7 +759,7 @@ async fn run_setup<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
     for action in actions.action.iter().enumerate() {
         let action_pointer = pointer
             .descend::<TestScriptTestAction>(&Key::Field("action".to_string()))
-            .and_then(|p| p.descend(&Key::Index(action.0)));
+            .and_then(|p| p.descend::<TestScriptSetupAction>(&Key::Index(action.0)));
 
         let action_pointer = action_pointer.ok_or_else(|| {
             TestScriptError::ExecutionError(format!(
@@ -511,7 +768,7 @@ async fn run_setup<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
             ))
         })?;
 
-        let result = run_action(client, ctx.clone(), cur_state, action_pointer).await?;
+        let result = run_setup_action(client, ctx.clone(), cur_state, action_pointer).await?;
         cur_state = result.state;
 
         setup_results.action.push(result.value);
@@ -520,6 +777,62 @@ async fn run_setup<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
     Ok(TestResult {
         state: cur_state,
         value: setup_results,
+    })
+}
+
+async fn run_teardown<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
+    client: &Client,
+    ctx: CTX,
+    state: Arc<Mutex<TestState>>,
+    pointer: Pointer<TestScript, TestScriptTeardown>,
+) -> Result<TestResult<TestReportTeardown>, TestScriptError> {
+    let mut cur_state = state;
+
+    let mut teardown_results = TestReportTeardown {
+        action: vec![],
+        ..Default::default()
+    };
+
+    let Some(actions) = pointer.value() else {
+        return Ok(TestResult {
+            state: cur_state,
+            value: teardown_results,
+        });
+    };
+
+    for action in actions.action.iter().enumerate() {
+        let action_pointer = pointer
+            .descend::<Vec<TestScriptTeardownAction>>(&Key::Field("action".to_string()))
+            .and_then(|p| p.descend::<TestScriptTeardownAction>(&Key::Index(action.0)));
+
+        let action_pointer = action_pointer.ok_or_else(|| {
+            TestScriptError::ExecutionError(format!(
+                "Failed to retrieve TestScript action at index {}.",
+                action.0
+            ))
+        })?;
+
+        let operation_pointer = action_pointer
+            .descend::<TestScriptSetupActionOperation>(&Key::Field("operation".to_string()))
+            .ok_or_else(|| {
+                TestScriptError::ExecutionError(format!(
+                    "Failed to retrieve TestScript operation at index {}.",
+                    action.0
+                ))
+            })?;
+
+        let result = run_operation(client, ctx.clone(), cur_state, operation_pointer).await?;
+        cur_state = result.state;
+
+        teardown_results.action.push(TestReportTeardownAction {
+            operation: result.value,
+            ..Default::default()
+        });
+    }
+
+    Ok(TestResult {
+        state: cur_state,
+        value: teardown_results,
     })
 }
 
@@ -630,25 +943,53 @@ pub async fn run<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
         .await
         .map_err(|e| TestScriptError::OperationError(e))?;
 
+    let mut running_state = Ok(());
+
     // Run setup actions
     if let Some(setup_pointer) =
         pointer.descend::<TestScriptSetup>(&Key::Field("setup".to_string()))
     {
-        let setup_result = run_setup(client, ctx.clone(), state, setup_pointer).await?;
-        state = setup_result.state;
-        test_report.setup = Some(setup_result.value);
+        let setup_result = run_setup(client, ctx.clone(), state.clone(), setup_pointer).await;
+        match setup_result {
+            Ok(res) => {
+                state = res.state;
+                test_report.setup = Some(res.value);
+            }
+            Err(e) => {
+                running_state = Err(e);
+            }
+        }
     }
 
     // Run Test actions
-    if let Some(test_pointer) =
-        pointer.descend::<Vec<TestScriptTest>>(&Key::Field("test".to_string()))
+    if running_state.is_ok()
+        && let Some(test_pointer) =
+            pointer.descend::<Vec<TestScriptTest>>(&Key::Field("test".to_string()))
     {
-        let test_result = run_tests(client, ctx.clone(), state, test_pointer).await?;
-        state = test_result.state;
-        test_report.test = Some(test_result.value);
+        let test_result = run_tests(client, ctx.clone(), state.clone(), test_pointer).await;
+
+        match test_result {
+            Ok(res) => {
+                state = res.state;
+                test_report.test = Some(res.value);
+            }
+
+            Err(e) => {
+                running_state = Err(e);
+            }
+        }
     }
 
-    println!("State {:?}", state);
+    if let Some(teardown_pointer) =
+        pointer.descend::<TestScriptTeardown>(&Key::Field("teardown".to_string()))
+    {
+        let result = run_teardown(client, ctx.clone(), state, teardown_pointer).await?;
+
+        // state = result.state;
+        test_report.teardown = Some(result.value);
+    }
+
+    running_state?;
 
     Ok(test_report)
 }
