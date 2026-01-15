@@ -1,0 +1,84 @@
+name: End-to-end testing
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      CERTIFICATION_DIR: certifications
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/haste_health
+      API_URI: http://localhost:3000
+      ELASTICSEARCH_URL: http://localhost:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: elastic
+      ADMIN_APP_REDIRECT_URI: http://*.localhost:3001
+      SQLX_OFFLINE: true
+
+    services:
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:9.2.4
+        ports:
+          - 9200:9200
+        env:
+          ELASTIC_PASSWORD: elastic
+          discovery.type: single-node
+          xpack.security.enabled: true
+          xpack.security.http.ssl.enabled: false
+          xpack.license.self_generated.type: trial
+          xpack.ml.use_auto_machine_memory_percent: true
+          ES_JAVA_OPTS: -Xms128m -Xmx2g
+          cluster.routing.allocation.disk.watermark.low: 1gb
+          cluster.routing.allocation.disk.watermark.high: 1gb
+          cluster.routing.allocation.disk.watermark.flood_stage: 1gb
+
+      postgres:
+        image: postgres:18.1
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        env:
+          POSTGRES_DB: haste_health
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build
+        run: cargo build --verbose --workspace
+        working-directory: ./backend
+
+      - name: Run migrations
+        run: ./target/debug/haste-health server migrate search && ./target/debug/haste-health server migrate repo
+        working-directory: ./backend
+
+      - name: Start Server
+        run: ./target/debug/haste-health server start &
+        working-directory: ./backend
+
+      - name: Start Worker
+        run: ./target/debug/haste-health worker &
+        working-directory: ./backend
+
+      - name: Migrate artifacts
+        run: ./target/debug/haste-health server migrate artifacts
+        working-directory: ./backend
+
+    #   - name: End-to-end tests
+    #     run: ./target/debug/haste-health testscript run -i testscripts
+    #     working-directory: ./backend
