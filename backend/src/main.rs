@@ -10,6 +10,7 @@ use tokio::sync::Mutex;
 
 use crate::commands::config::{CLIConfiguration, load_config};
 
+mod client;
 mod commands;
 
 #[derive(Parser)]
@@ -44,6 +45,10 @@ enum CLICommand {
         command: commands::config::ConfigCommands,
     },
     Worker {},
+    Testscript {
+        #[command(subcommand)]
+        command: commands::testscript::TestScriptCommands,
+    },
 }
 
 static CONFIG_LOCATION: LazyLock<PathBuf> = LazyLock::new(|| {
@@ -80,6 +85,8 @@ static CLI_STATE: LazyLock<Arc<Mutex<CLIState>>> = LazyLock::new(|| {
 
 #[tokio::main]
 async fn main() -> Result<(), OperationOutcomeError> {
+    let subscriber = tracing_subscriber::FmtSubscriber::new();
+    tracing::subscriber::set_global_default(subscriber).unwrap();
     let cli = Cli::parse();
     let config = CLI_STATE.clone();
 
@@ -90,5 +97,8 @@ async fn main() -> Result<(), OperationOutcomeError> {
         CLICommand::Worker {} => commands::worker::worker().await,
         CLICommand::Config { command } => commands::config::config(&config, command).await,
         CLICommand::Api { command } => commands::api::api_commands(config, command).await,
+        CLICommand::Testscript { command } => {
+            commands::testscript::testscript_commands(config, command).await
+        }
     }
 }
