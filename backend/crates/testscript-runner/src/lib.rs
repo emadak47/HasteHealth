@@ -32,7 +32,6 @@ use std::{
     time::Duration,
 };
 use tokio::sync::Mutex;
-use tracing::{info, warn};
 
 use crate::conversion::ConvertedValue;
 
@@ -550,7 +549,7 @@ async fn run_assertion(
             )],
         );
         if !operation_evaluation_result {
-            warn!(
+            tracing::error!(
                 "Assertion at '{}' failed: resource type does not match.",
                 pointer.path()
             );
@@ -573,7 +572,7 @@ async fn run_assertion(
             .evaluate(expression, vec![source])
             .await
         else {
-            warn!(
+            tracing::error!(
                 "Assertion at '{}' failed: FHIRPath evaluation error.",
                 pointer.path()
             );
@@ -594,7 +593,7 @@ async fn run_assertion(
             evaluate_operator(operator, &converted_values, &comparison_to?);
 
         if !operation_evaluation_result {
-            warn!(
+            tracing::error!(
                 "Assertion at '{}' failed: operator evaluation failed.",
                 pointer.path()
             );
@@ -626,7 +625,7 @@ async fn run_action<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
     pointer: Pointer<TestScript, TestScriptTestAction>,
     options: Arc<TestRunnerOptions>,
 ) -> Result<TestResult<TestReportSetupAction>, TestScriptError> {
-    info!("Running TestScript action at path: {}", pointer.path());
+    tracing::info!("Running TestScript action at path: {}", pointer.path());
     let action = pointer.value().ok_or_else(|| {
         TestScriptError::ExecutionError(format!(
             "Failed to retrieve TestScript action at '{}'.",
@@ -634,7 +633,7 @@ async fn run_action<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
         ))
     })?;
 
-    info!("Running TestScript action at path: {}", pointer.path());
+    tracing::info!("Running TestScript action at path: {}", pointer.path());
 
     // Should be either an operation or an assert.
     // Both should not exist at the same time.
@@ -698,7 +697,7 @@ async fn run_setup_action<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
         ))
     })?;
 
-    info!("Running TestScript action at path: {}", pointer.path());
+    tracing::info!("Running TestScript action at path: {}", pointer.path());
 
     // Should be either an operation or an assert.
     // Both should not exist at the same time.
@@ -1066,7 +1065,7 @@ pub async fn run<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
     options: Arc<TestRunnerOptions>,
 ) -> Result<TestReport, TestScriptError> {
     // Placeholder implementation
-    info!("Running TestScript Runner with FHIR Client");
+    tracing::info!("Running TestScript Runner with FHIR Client");
 
     let mut test_report = TestReport {
         status: Box::new(ReportStatusCodes::Completed(None)),
@@ -1096,7 +1095,7 @@ pub async fn run<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
     if let Some(setup_pointer) =
         pointer.descend::<TestScriptSetup>(&Key::Field("setup".to_string()))
     {
-        info!("Running TestScript setup...");
+        tracing::info!("Running TestScript setup...");
         let setup_result = run_setup(
             client,
             ctx.clone(),
@@ -1121,7 +1120,7 @@ pub async fn run<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
         && let Some(test_pointer) =
             pointer.descend::<Vec<TestScriptTest>>(&Key::Field("test".to_string()))
     {
-        info!("Running TestScript tests...");
+        tracing::info!("Running TestScript tests...");
         let test_result = run_tests(
             client,
             ctx.clone(),
@@ -1146,7 +1145,7 @@ pub async fn run<CTX: Clone, Client: FHIRClient<CTX, OperationOutcomeError>>(
     if let Some(teardown_pointer) =
         pointer.descend::<TestScriptTeardown>(&Key::Field("teardown".to_string()))
     {
-        info!("Running TestScript teardown...");
+        tracing::info!("Running TestScript teardown...");
 
         let result = run_teardown(
             client,

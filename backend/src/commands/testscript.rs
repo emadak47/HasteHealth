@@ -187,10 +187,13 @@ pub async fn testscript_commands(
             }
 
             if status_code != 0 {
-                std::process::exit(status_code);
+                Err(OperationOutcomeError::fatal(
+                    IssueType::Exception(None),
+                    "One or more TestScripts failed".to_string(),
+                ))
+            } else {
+                Ok(())
             }
-
-            Ok(())
         }
     }
 }
