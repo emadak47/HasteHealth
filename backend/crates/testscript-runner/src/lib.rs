@@ -1,9 +1,9 @@
 use haste_fhir_client::{
     FHIRClient,
     request::{
-        DeleteRequest, FHIRCreateRequest, FHIRDeleteInstanceRequest, FHIRDeleteTypeRequest,
-        FHIRReadRequest, FHIRRequest, FHIRResponse, HistoryResponse, InvokeResponse,
-        SearchResponse, UpdateRequest,
+        DeleteRequest, FHIRCreateRequest, FHIRDeleteInstanceRequest, FHIRDeleteSystemRequest,
+        FHIRDeleteTypeRequest, FHIRReadRequest, FHIRRequest, FHIRResponse, FHIRTransactionRequest,
+        HistoryResponse, InvokeResponse, SearchResponse, UpdateRequest,
     },
     url::ParsedParameters,
 };
@@ -17,7 +17,7 @@ use haste_fhir_model::r4::generated::{
         TestScriptTest, TestScriptTestAction,
     },
     terminology::{
-        AssertDirectionCodes, AssertOperatorCodes, IssueType, ReportActionResultCodes,
+        AssertDirectionCodes, AssertOperatorCodes, BundleType, IssueType, ReportActionResultCodes,
         ReportResultCodes, ReportStatusCodes, TestscriptOperationCodes,
     },
     types::{FHIRMarkdown, FHIRString, Reference},
@@ -191,32 +191,37 @@ fn associate_request_response_variables(
 fn derive_resource_type(
     operation: &TestScriptSetupActionOperation,
     target: Option<&dyn MetaValue>,
+    path: &str,
 ) -> Result<ResourceType, TestScriptError> {
     if let Some(operation_resource_type) = operation.resource.as_ref() {
         let string_type: Option<String> = operation_resource_type.as_ref().into();
         ResourceType::try_from(string_type.unwrap_or_default()).map_err(|_| {
             TestScriptError::ExecutionError(format!(
-                "Unsupported resource type '{:?}' for Read operation.",
-                operation_resource_type.as_ref()
+                "Unsupported resource type '{:?}' for operation at '{}'.",
+                operation_resource_type.as_ref(),
+                path
             ))
         })
     } else if let Some(target) = target {
         ResourceType::try_from(target.typename()).map_err(|_| {
             TestScriptError::ExecutionError(format!(
-                "Unsupported resource type '{}' for Read operation.",
-                target.typename()
+                "Unsupported resource type '{}' for operation at '{}'.",
+                target.typename(),
+                path
             ))
         })
     } else {
-        Err(TestScriptError::ExecutionError(
-            "Failed to derive resource type for Read operation.".to_string(),
-        ))
+        Err(TestScriptError::ExecutionError(format!(
+            "Failed to derive resource type for operation at '{}'.",
+            path
+        )))
     }
 }
 
 fn testscript_operation_to_fhir_request(
     state: &TestState,
     operation: &TestScriptSetupActionOperation,
+    path: &str,
 ) -> Result<FHIRRequest, TestScriptError> {
     let operation_type = operation
         .type_
@@ -226,15 +231,16 @@ fn testscript_operation_to_fhir_request(
 
     if operation_type == (&TestscriptOperationCodes::Read(None)).into() {
         let Some(target_id) = operation.targetId.as_ref().and_then(|id| id.value.as_ref()) else {
-            return Err(TestScriptError::ExecutionError(
-                "Read operation requires targetId at.".to_string(),
-            ));
+            return Err(TestScriptError::ExecutionError(format!(
+                "Read operation requires targetId at '{}'.",
+                path
+            )));
         };
 
         let target = state.resolve_fixture(target_id)?;
 
         Ok(FHIRRequest::Read(FHIRReadRequest {
-            resource_type: derive_resource_type(operation, Some(target))?,
+            resource_type: derive_resource_type(operation, Some(target), path)?,
             id: target
                 .get_field("id")
                 .ok_or_else(|| {
@@ -248,11 +254,50 @@ fn testscript_operation_to_fhir_request(
                 .cloned()
                 .unwrap_or_default(),
         }))
+    } else if operation_type == (&TestscriptOperationCodes::Transaction(None)).into() {
+        let Some(source_id) = operation.sourceId.as_ref().and_then(|id| id.value.as_ref()) else {
+            return Err(TestScriptError::ExecutionError(format!(
+                "Transaction operation requires sourceId at '{}'.",
+                path
+            )));
+        };
+
+        let source = state.resolve_fixture(source_id)?;
+        let resource = (source as &dyn Any)
+            .downcast_ref::<Resource>()
+            .cloned()
+            .ok_or_else(|| {
+                TestScriptError::ExecutionError(format!(
+                    "Target fixture '{}' is not a Resource.",
+                    source_id
+                ))
+            })?;
+
+        match resource {
+            Resource::Bundle(bundle) => {
+                if !matches!(bundle.type_.as_ref(), BundleType::Transaction(_)) {
+                    return Err(TestScriptError::ExecutionError(format!(
+                        "Fixture must be a transaction bundle for transaction operations for sourceId '{}'.",
+                        source_id
+                    )));
+                }
+
+                Ok(FHIRRequest::Transaction(FHIRTransactionRequest {
+                    resource: bundle,
+                }))
+            }
+
+            _ => Err(TestScriptError::ExecutionError(format!(
+                "Fixture '{}' is not a transaction Bundle resource.",
+                source_id
+            ))),
+        }
     } else if operation_type == (&TestscriptOperationCodes::Create(None)).into() {
         let Some(source_id) = operation.sourceId.as_ref().and_then(|id| id.value.as_ref()) else {
-            return Err(TestScriptError::ExecutionError(
-                "Create operation requires targetId at.".to_string(),
-            ));
+            return Err(TestScriptError::ExecutionError(format!(
+                "Create operation requires sourceId at '{}'.",
+                path
+            )));
         };
 
         let source = state.resolve_fixture(source_id)?;
@@ -267,21 +312,22 @@ fn testscript_operation_to_fhir_request(
             })?;
 
         Ok(FHIRRequest::Create(FHIRCreateRequest {
-            resource_type: derive_resource_type(operation, Some(source))?,
+            resource_type: derive_resource_type(operation, Some(source), path)?,
             resource: resource,
         }))
     } else if operation_type == (&TestscriptOperationCodes::Delete(None)).into() {
         let Some(target_id) = operation.targetId.as_ref().and_then(|id| id.value.as_ref()) else {
-            return Err(TestScriptError::ExecutionError(
-                "Delete operation requires targetId at.".to_string(),
-            ));
+            return Err(TestScriptError::ExecutionError(format!(
+                "Delete operation requires targetId at '{}'.",
+                path
+            )));
         };
 
         let target = state.resolve_fixture(target_id)?;
 
         Ok(FHIRRequest::Delete(DeleteRequest::Instance(
             FHIRDeleteInstanceRequest {
-                resource_type: derive_resource_type(operation, Some(target))?,
+                resource_type: derive_resource_type(operation, Some(target), path)?,
                 id: target
                     .get_field("id")
                     .ok_or_else(|| {
@@ -297,30 +343,39 @@ fn testscript_operation_to_fhir_request(
             },
         )))
     } else if operation_type == (&TestscriptOperationCodes::DeleteCondMultiple(None)).into() {
-        Ok(FHIRRequest::Delete(DeleteRequest::Type(
-            FHIRDeleteTypeRequest {
-                resource_type: derive_resource_type(operation, None)?,
-                parameters: ParsedParameters::try_from(
-                    operation
-                        .params
-                        .as_ref()
-                        .and_then(|p| p.value.as_ref())
-                        .cloned()
-                        .unwrap_or("".to_string())
-                        .as_str(),
-                )
-                .map_err(|e| {
-                    TestScriptError::ExecutionError(format!(
-                        "Failed to parse parameters for DeleteCondMultiple operation: {}",
-                        e
-                    ))
-                })?,
-            },
-        )))
+        let delete_parameters = ParsedParameters::try_from(
+            operation
+                .params
+                .as_ref()
+                .and_then(|p| p.value.as_ref())
+                .cloned()
+                .unwrap_or("".to_string())
+                .as_str(),
+        )
+        .map_err(|e| {
+            TestScriptError::ExecutionError(format!(
+                "Failed to parse parameters for DeleteCondMultiple operation at '{}': {}",
+                path, e
+            ))
+        })?;
+        if operation.resource.is_some() {
+            Ok(FHIRRequest::Delete(DeleteRequest::Type(
+                FHIRDeleteTypeRequest {
+                    resource_type: derive_resource_type(operation, None, path)?,
+                    parameters: delete_parameters,
+                },
+            )))
+        } else {
+            Ok(FHIRRequest::Delete(DeleteRequest::System(
+                FHIRDeleteSystemRequest {
+                    parameters: delete_parameters,
+                },
+            )))
+        }
     } else {
         Err(TestScriptError::ExecutionError(format!(
-            "Unsupported TestScript operation type: {:?}",
-            operation_type
+            "Unsupported TestScript operation type: {:?} at '{}'.",
+            operation_type, path
         )))
     }
 }
@@ -340,7 +395,8 @@ async fn run_operation<CTX, Client: FHIRClient<CTX, OperationOutcomeError>>(
     })?;
 
     let mut state_guard = state.lock().await;
-    let fhir_request = testscript_operation_to_fhir_request(&state_guard, operation)?;
+    let fhir_request =
+        testscript_operation_to_fhir_request(&state_guard, operation, pointer.path())?;
     let fhir_response = client.request(ctx, fhir_request.clone()).await;
     if let Some(wait_duration) = options.wait_between_operations {
         tokio::time::sleep(wait_duration).await;
@@ -433,16 +489,27 @@ fn evaluate_operator(
     match operator.as_ref() {
         AssertOperatorCodes::Equals(_) | AssertOperatorCodes::Null(_) => a == b,
 
-        AssertOperatorCodes::Contains(_) => todo!(),
-        AssertOperatorCodes::Empty(_) => todo!(),
-        AssertOperatorCodes::Eval(_) => todo!(),
-        AssertOperatorCodes::GreaterThan(_) => todo!(),
-        AssertOperatorCodes::In(_) => todo!(),
-        AssertOperatorCodes::LessThan(_) => todo!(),
-        AssertOperatorCodes::NotContains(_) => todo!(),
-        AssertOperatorCodes::NotEmpty(_) => todo!(),
-        AssertOperatorCodes::NotEquals(_) => todo!(),
-        AssertOperatorCodes::NotIn(_) => todo!(),
+        AssertOperatorCodes::Contains(_) => {
+            if a.len() != 1 || b.len() != 1 {
+                return false;
+            }
+
+            match (&a[0], &b[0]) {
+                (ConvertedValue::String(a_str), ConvertedValue::String(b_str)) => {
+                    a_str.contains(b_str)
+                }
+                _ => false,
+            }
+        }
+        AssertOperatorCodes::Empty(_) => todo!("Empty operator not implemented"),
+        AssertOperatorCodes::Eval(_) => todo!("Eval operator not implemented"),
+        AssertOperatorCodes::GreaterThan(_) => todo!("GreaterThan operator not implemented"),
+        AssertOperatorCodes::In(_) => todo!("In operator not implemented"),
+        AssertOperatorCodes::LessThan(_) => todo!("LessThan operator not implemented"),
+        AssertOperatorCodes::NotContains(_) => todo!("NotContains operator not implemented"),
+        AssertOperatorCodes::NotEmpty(_) => todo!("NotEmpty operator not implemented"),
+        AssertOperatorCodes::NotEquals(_) => todo!("NotEquals operator not implemented"),
+        AssertOperatorCodes::NotIn(_) => todo!("NotIn operator not implemented"),
     }
     // a == b
 }
