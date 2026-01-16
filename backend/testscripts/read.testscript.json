@@ -64,7 +64,7 @@
                 "assert": {
                     "label": "Confirm first name is Peter",
                     "expression": "Patient.name.given[0]",
-                    "value": "Pete",
+                    "value": "Peter",
                     "warningOnly": false
                 }
             }
