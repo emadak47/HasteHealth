@@ -7,15 +7,22 @@ use crate::{
     types::{FHIRMethod, SupportedFHIRVersions},
     utilities,
 };
-use haste_fhir_client::request::HistoryRequest;
+use haste_fhir_client::{
+    request::HistoryRequest,
+    url::{ParsedParameter, ParsedParameters},
+};
 use haste_fhir_model::r4::{
-    generated::resources::{Resource, ResourceType},
+    datetime::parse_datetime,
+    generated::{
+        resources::{Resource, ResourceType},
+        terminology::IssueType,
+    },
     sqlx::{FHIRJson, FHIRJsonRef},
 };
 use haste_fhir_operation_error::OperationOutcomeError;
 use haste_jwt::{ProjectId, ResourceId, TenantId, VersionId, claims::UserTokenClaims};
 use moka::future::Cache;
-use sqlx::{Acquire, Postgres, QueryBuilder};
+use sqlx::{Acquire, Postgres, QueryBuilder, query_builder::Separated};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -518,46 +525,104 @@ fn read_latest<'a, 'c, Connection: Acquire<'c, Database = Postgres> + Send + 'a>
     }
 }
 
+fn process_history_parameters<'a>(
+    parameters: &'a ParsedParameters,
+    clauses: &mut Separated<'_, 'a, Postgres, &str>,
+) -> Result<(), OperationOutcomeError> {
+    for parameter in parameters.parameters() {
+        match parameter {
+            ParsedParameter::Result(result_param) => match result_param.name.as_str() {
+                "_since" => {
+                    if let Some(value) = &result_param.value.get(0) {
+                        let date_time = parse_datetime(value.as_str()).map_err(|e| {
+                            OperationOutcomeError::fatal(
+                                IssueType::Invalid(None),
+                                format!("Invalid _since parameter datetime: {:?}", e),
+                            )
+                        })?;
+
+                        clauses.push(" created_at >= ").push_bind_unseparated(
+                            chrono::DateTime::try_from(date_time).map_err(|e| {
+                                OperationOutcomeError::fatal(
+                                    IssueType::Invalid(None),
+                                    format!("Invalid _since parameter datetime: {:?}", e),
+                                )
+                            })?,
+                        );
+                    }
+                }
+                _ => {}
+            },
+            _ => {
+                return Err(OperationOutcomeError::fatal(
+                    IssueType::NotSupported(None),
+                    format!(
+                        "Parameter '{}' is not supported for history requests.",
+                        parameter.name()
+                    ),
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn history<'a, 'c, Connection: Acquire<'c, Database = Postgres> + Send + 'a>(
     connection: Connection,
-    tenant_id: &'a TenantId,
-    project_id: &'a ProjectId,
+    tenant: &'a TenantId,
+    project: &'a ProjectId,
     history_request: &'a HistoryRequest,
 ) -> impl Future<Output = Result<Vec<Resource>, OperationOutcomeError>> + Send + 'a {
     async move {
         let mut conn = connection.acquire().await.map_err(StoreError::from)?;
+
+        let mut query_builder: QueryBuilder<Postgres> =
+            QueryBuilder::new(r#"SELECT resource FROM resources WHERE  "#);
+
+        let mut clauses = query_builder.separated(" AND ");
+        clauses
+            .push(" tenant = ")
+            .push_bind_unseparated(tenant.as_ref())
+            .push(" project = ")
+            .push_bind_unseparated(project.as_ref());
+
+        let history_parameters = match history_request {
+            HistoryRequest::Instance(history_instance_request) => {
+                &history_instance_request.parameters
+            }
+            HistoryRequest::Type(history_type_request) => &history_type_request.parameters,
+            HistoryRequest::System(system_request) => &system_request.parameters,
+        };
+
+        process_history_parameters(&history_parameters, &mut clauses)?;
+
         match history_request {
             HistoryRequest::Instance(history_instance_request) => {
-                let response = sqlx::query_as!(ReturnSingularResource,
-                    r#"SELECT resource as "resource: FHIRJson<Resource>" FROM resources WHERE tenant = $1 AND project = $2 AND id = $3 AND resource_type = $4 ORDER BY sequence DESC LIMIT 100"#,
-                        tenant_id.as_ref()  as &str,
-                        project_id.as_ref() as &str,
-                        history_instance_request.id.as_ref() as &str,
-                        history_instance_request.resource_type.as_ref() as &str
-                    ).fetch_all(&mut *conn).await.map_err(StoreError::from)?;
-
-                Ok(response.into_iter().map(|r| r.resource.0).collect())
+                clauses
+                    .push(" resource_type = ")
+                    .push_bind_unseparated(history_instance_request.resource_type.as_ref())
+                    .push(" id = ")
+                    .push_bind_unseparated(&history_instance_request.id);
             }
             HistoryRequest::Type(history_type_request) => {
-                let response = sqlx::query_as!(ReturnSingularResource,
-                    r#"SELECT resource as "resource: FHIRJson<Resource>" FROM resources WHERE tenant = $1 AND project = $2 AND resource_type = $3 ORDER BY sequence DESC LIMIT 100"#,
-                        tenant_id.as_ref()  as &str,
-                        project_id.as_ref() as &str,
-                        history_type_request.resource_type.as_ref() as &str
-                    ).fetch_all(&mut *conn).await.map_err(StoreError::from)?;
-
-                Ok(response.into_iter().map(|r| r.resource.0).collect())
+                clauses
+                    .push(" resource_type = ")
+                    .push_bind_unseparated(history_type_request.resource_type.as_ref());
             }
-            HistoryRequest::System(_request) => {
-                let response = sqlx::query_as!(ReturnSingularResource,
-                    r#"SELECT resource as "resource: FHIRJson<Resource>" FROM resources WHERE tenant = $1 AND project = $2 ORDER BY sequence DESC LIMIT 100"#,
-                        tenant_id.as_ref()  as &str,
-                        project_id.as_ref() as &str
-                    ).fetch_all(&mut *conn).await.map_err(StoreError::from)?;
+            HistoryRequest::System(_request) => {}
+        };
 
-                Ok(response.into_iter().map(|r| r.resource.0).collect())
-            }
-        }
+        query_builder.push(" ORDER BY sequence DESC LIMIT 100");
+
+        let query = query_builder.build_query_as();
+
+        let result: Vec<ReturnSingularResource> = query
+            .fetch_all(&mut *conn)
+            .await
+            .map_err(StoreError::from)?;
+
+        Ok(result.into_iter().map(|r| r.resource.0).collect::<Vec<_>>())
     }
 }
 

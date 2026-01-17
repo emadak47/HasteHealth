@@ -10,12 +10,40 @@ pub enum ConvertedValue {
     Number(f64),
 }
 
+impl ToString for ConvertedValue {
+    fn to_string(&self) -> String {
+        match self {
+            ConvertedValue::String(s) => s.clone(),
+            ConvertedValue::Boolean(b) => b.to_string(),
+            ConvertedValue::Number(n) => n.to_string(),
+        }
+    }
+}
+
 fn downcast_string(value: &dyn MetaValue) -> Option<String> {
     match value.typename() {
         "FHIRCanonical" | "FHIRBase64Binary" | "FHIRCode" | "FHIRString" | "FHIROid" | "FHIRId"
         | "FHIRUri" | "FHIRUrl" | "FHIRUuid" | "FHIRXhtml" => {
             downcast_string(value.get_field("value").unwrap_or(&"".to_string()))
         }
+
+        "FHIRDate" => value
+            .as_any()
+            .downcast_ref::<haste_fhir_model::r4::generated::types::FHIRDate>()
+            .and_then(|dt| dt.value.as_ref())
+            .map(|d| d.to_string()),
+
+        "FHIRDateTime" => value
+            .as_any()
+            .downcast_ref::<haste_fhir_model::r4::generated::types::FHIRDateTime>()
+            .and_then(|dt| dt.value.as_ref())
+            .map(|d| d.to_string()),
+
+        "FHIRInstant" => value
+            .as_any()
+            .downcast_ref::<haste_fhir_model::r4::generated::types::FHIRInstant>()
+            .and_then(|dt| dt.value.as_ref())
+            .map(|d| d.to_string()),
 
         "http://hl7.org/fhirpath/System.String" => {
             value.as_any().downcast_ref::<String>().map(|v| v.clone())
