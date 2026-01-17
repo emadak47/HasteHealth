@@ -1,0 +1,184 @@
+{
+    "id": "update-client-supplied-id",
+    "url": "https://haste.health/fhir/update-client-supplied-id",
+    "name": "Update Patient with client supplied id",
+    "title": "Update with client supplied id",
+    "status": "active",
+    "description": "Tests client supplied id on update.",
+    "resourceType": "TestScript",
+    "contained": [
+        {
+            "id": "patient",
+            "resourceType": "Patient",
+            "meta": {
+                "tag": [
+                    {
+                        "code": "update-test"
+                    }
+                ]
+            },
+            "name": [
+                {
+                    "family": "Chalmers",
+                    "given": [
+                        "Peter"
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "encounter",
+            "resourceType": "Encounter",
+            "meta": {
+                "tag": [
+                    {
+                        "code": "update-test"
+                    }
+                ]
+            },
+            "class": {
+                "code": "123"
+            },
+            "status": "in-progress"
+        }
+    ],
+    "fixture": [
+        {
+            "id": "fixture-patient",
+            "resource": {
+                "reference": "#patient"
+            },
+            "autocreate": false,
+            "autodelete": false
+        },
+        {
+            "id": "fixture-encounter",
+            "resource": {
+                "reference": "#encounter"
+            },
+            "autocreate": false,
+            "autodelete": false
+        }
+    ],
+    "test": [
+        {
+            "id": "update-client-supplied",
+            "name": "Update Patient with client supplied id",
+            "action": [
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "update"
+                        },
+                        "targetId": "fixture-patient",
+                        "sourceId": "fixture-patient",
+                        "responseId": "update-response",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "read"
+                        },
+                        "resource": "Patient",
+                        "targetId": "update-response",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Patient.id",
+                        "value": "patient",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "update"
+                        },
+                        "resource": "Encounter",
+                        "targetId": "update-response",
+                        "sourceId": "fixture-encounter",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "resource": "Encounter",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "update"
+                        },
+                        "resource": "Encounter",
+                        "targetId": "fixture-encounter",
+                        "sourceId": "fixture-encounter",
+                        "responseId": "encounter-response",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Encounter.id",
+                        "value": "encounter",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "update"
+                        },
+                        "resource": "Encounter",
+                        "targetId": "fixture-encounter",
+                        "sourceId": "fixture-encounter",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Encounter.id",
+                        "compareToSourceId": "encounter-response",
+                        "compareToSourceExpression": "Encounter.id",
+                        "operator": "equals",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Encounter.meta.versionId",
+                        "compareToSourceId": "encounter-response",
+                        "compareToSourceExpression": "Encounter.meta.versionId",
+                        "operator": "notEquals",
+                        "warningOnly": false
+                    }
+                }
+            ]
+        }
+    ],
+    "teardown": {
+        "action": [
+            {
+                "operation": {
+                    "type": {
+                        "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                        "code": "deleteCondMultiple"
+                    },
+                    "params": "_tag=update-test",
+                    "description": "Delete data created during test.",
+                    "encodeRequestUrl": false
+                }
+            }
+        ]
+    }
+}
