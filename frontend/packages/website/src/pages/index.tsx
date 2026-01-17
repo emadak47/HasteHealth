@@ -9,7 +9,7 @@ function DescriptionColumn(
   props: Readonly<{
     title: ReactNode;
     description: ReactNode;
-  }>
+  }>,
 ) {
   return (
     <div className="space-y-1">
@@ -20,7 +20,7 @@ function DescriptionColumn(
 }
 
 function CarouselCard(
-  props: Readonly<{ onClick?: () => void; children?: ReactNode }>
+  props: Readonly<{ onClick?: () => void; children?: ReactNode }>,
 ) {
   return (
     <div
@@ -61,7 +61,7 @@ export default function Home(): ReactNode {
       console.log("Container margin top:", style.marginTop);
       setContainerHeight(
         containerRef.current.clientHeight +
-          Number.parseInt(style.marginTop, 10) / 2
+          Number.parseInt(style.marginTop, 10) / 2,
       );
     }
   }, [containerRef]);
@@ -90,7 +90,7 @@ export default function Home(): ReactNode {
               </Heading>
               <div className="text-center">
                 <span className="text-2xl text-orange-950 font-semibold">
-                  Modern healthcare development platform. Built for{" "}
+                  Modern healthcare clinical data repository. Built for{" "}
                   <span className="text-orange-600 ">performance</span> and{" "}
                   <span className="text-orange-600 ">scale</span>.
                 </span>

@@ -4,7 +4,7 @@
 
 ## Overview
 
-FHIR development platform built for speed.
+FHIR clinical data repository built for speed.
 
 ## Running for Development
 
