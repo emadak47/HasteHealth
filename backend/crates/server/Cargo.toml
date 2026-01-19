@@ -24,12 +24,13 @@ jsonwebtoken = { workspace = true }
 regex = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["form"] }
 walkdir = { workspace = true }
 axum = { version = "0.8.4", features = ["macros"] }
-axum-extra = { version = "0.10.1", features = [
+axum-extra = { version = "0.12.5", features = [
     "typed-routing",
     "typed-header",
+    "cached",
 ] }
 base64 = "0.22.1"
 json-patch = "4.0.0"
@@ -65,8 +66,8 @@ petgraph = "0.8.3"
 rand = "0.8"
 rsa = "0.9.10"
 rust-embed = { version = "8.9.0", features = ["axum-ex"] }
-sendgrid = "0.24.1"
-serde_html_form = "0.2.8"
+sendgrid = "0.26.0"
+serde_html_form = "0.4.0"
 sha1 = "0.10.6"
 sha2 = "0.10.9"
 tower = "0.5.2"
