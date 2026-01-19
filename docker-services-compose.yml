@@ -56,7 +56,7 @@ services:
       elasticsearch:
         condition: service_healthy
     command:
-      - server
+      - admin
       - migrate
       - all
 
