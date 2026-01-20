@@ -88,13 +88,14 @@ jobs:
 
       - name: Confirm Client App
         run: |
-          for i in {1..10}; do
+          set +e
+          for i in {1..5}; do
               ./target/debug/haste-health api capabilities
               if [ "$?" -eq 0 ]; then
                   echo "Condition met. Breaking loop."
                   exit 0;
               fi
-              sleep 2s;
+              sleep 1
           done
           exit 1;
 
