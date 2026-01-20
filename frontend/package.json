@@ -7,7 +7,8 @@
   ],
   "scripts": {
     "generate-documentation": "pnpm typedoc",
-    "ci:publish": "pnpm publish -r"
+    "ci:publish": "pnpm publish -r",
+    "ci:build": "pnpm run build -r"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",

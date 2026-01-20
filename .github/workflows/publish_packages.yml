@@ -80,6 +80,10 @@ jobs:
         run: pnpm install
         working-directory: ./frontend
 
+      - name: Install dependencies
+        run: pnpm ci:build
+        working-directory: ./frontend
+
       - name: Create and publish versions
         run: pnpm ci:publish
         working-directory: ./frontend
