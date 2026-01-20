@@ -66,22 +66,23 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Setup node.js
         uses: actions/setup-node@v4
         with:
+          cache-dependency-path: "./frontend/pnpm-lock.yaml"
           node-version: 23
           cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install
+        working-directory: ./frontend
 
       - name: Create and publish versions
-        uses: changesets/action@v1
-        with:
-          commit: "chore: update versions"
-          title: "chore: update versions"
-          publish: pnpm ci:publish
+        run: pnpm ci:publish
+        working-directory: ./frontend
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

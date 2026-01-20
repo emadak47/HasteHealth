@@ -1,6 +1,6 @@
 {
   "name": "@haste-health/hl7.fhir.us.core",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "tools-version": 3,
   "type": "fhir.ig",
   "date": "20210628190945",
