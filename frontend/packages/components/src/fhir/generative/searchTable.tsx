@@ -53,11 +53,11 @@ import {
 import { ClientProps } from "../types";
 
 interface FHIRGenerativeSearchTableProps<Version extends FHIR_VERSION>
-  extends Partial<TableProps>,
-    ClientProps {
+  extends Partial<TableProps>, ClientProps {
   fhirVersion: Version;
   resourceType: ResourceType<Version>;
   refresh?: (refreshFunc: () => void) => void;
+  parameters?: string[];
 }
 
 const modifiers: Record<string, string[]> = {
@@ -218,7 +218,7 @@ interface SearchColumnModalProps {
 }
 
 function searchParameterTypeToColor(
-  type: string | undefined
+  type: string | undefined,
 ): "blue" | "green" | "indigo" | "gray" | "purple" | "pink" | "yellow" {
   switch (type) {
     case "number": {
@@ -255,7 +255,7 @@ function searchParameterTypeToColor(
 
 function SearchColumnModal(props: Readonly<SearchColumnModalProps>) {
   const parameter = props.parameters.find(
-    (p) => p.name === props.searchParameter.code
+    (p) => p.name === props.searchParameter.code,
   ) ?? { name: props.searchParameter.code, value: [undefined] };
 
   const [curValue, setCurValue] = useState(parameter);
@@ -293,7 +293,7 @@ function SearchColumnModal(props: Readonly<SearchColumnModalProps>) {
             onClick={() => {
               props.onChange([
                 ...props.parameters.filter(
-                  (p) => p.name !== props.searchParameter.code
+                  (p) => p.name !== props.searchParameter.code,
                 ),
               ]);
             }}
@@ -305,7 +305,7 @@ function SearchColumnModal(props: Readonly<SearchColumnModalProps>) {
             onClick={() => {
               props.onChange([
                 ...props.parameters.filter(
-                  (p) => p.name !== props.searchParameter.code
+                  (p) => p.name !== props.searchParameter.code,
                 ),
                 curValue,
               ]);
@@ -447,7 +447,7 @@ interface SortIconProps {
   searchParameter: Resource<FHIR_VERSION, "SearchParameter">;
   sortParam: ParsedParameter<string | number | undefined> | undefined;
   onChange: (
-    v: ParsedParameter<string | number | undefined> | undefined
+    v: ParsedParameter<string | number | undefined> | undefined,
   ) => void;
 }
 function SearchParameterSortControl({
@@ -464,12 +464,12 @@ function SearchParameterSortControl({
       return (
         <ArrowUpIcon
           className={classNames(
-            "cursor-pointer w-4 h-4 hover:text-orange-400 text-orange-400"
+            "cursor-pointer w-4 h-4 hover:text-orange-400 text-orange-400",
           )}
           onClick={() => {
             const values = [
               ...(sortParam?.value ?? []).filter(
-                (v) => v !== searchParameter.code
+                (v) => v !== searchParameter.code,
               ),
             ];
             if (values.length === 0) {
@@ -493,9 +493,9 @@ function SearchParameterSortControl({
             "cursor-pointer w-4 h-4 hover:text-orange-400",
             {
               "text-orange-400": (sortParam?.value ?? []).includes(
-                `-${searchParameter.code}`
+                `-${searchParameter.code}`,
               ),
-            }
+            },
           )}
           onClick={() => {
             if (sortParam?.value.includes(`-${searchParameter.code}`)) {
@@ -504,7 +504,7 @@ function SearchParameterSortControl({
                 name: "_sort",
                 value: [
                   ...(sortParam?.value ?? []).filter(
-                    (v) => v !== `-${searchParameter.code}`
+                    (v) => v !== `-${searchParameter.code}`,
                   ),
                   `${searchParameter.code}`,
                 ],
@@ -515,7 +515,7 @@ function SearchParameterSortControl({
                 name: "_sort",
                 value: [
                   ...(sortParam?.value ?? []).filter(
-                    (v) => v !== `-${searchParameter.code}`
+                    (v) => v !== `-${searchParameter.code}`,
                   ),
                   `-${searchParameter.code}`,
                 ],
@@ -529,11 +529,11 @@ function SearchParameterSortControl({
 }
 
 export interface FHIRGenerativeSearchTableDisplayProps<
-  Version extends FHIR_VERSION
+  Version extends FHIR_VERSION,
 > {
   parameters: ParsedParameter<string | number | undefined>[];
   onParametersChange: (
-    v: ParsedParameter<string | number | undefined>[]
+    v: ParsedParameter<string | number | undefined>[],
   ) => void;
   searchParameters: Resource<Version, "SearchParameter">[];
   data: { total?: number; resources: Resource<Version, AllResourceTypes>[] };
@@ -578,12 +578,12 @@ export function FHIRGenerativeSearchTableDisplay<Version extends FHIR_VERSION>({
                 .filter((p) => searchParameters?.find((s) => s.code === p.name))
                 .map((p) => {
                   const paramIndex = searchParameters?.findIndex(
-                    (sp) => sp.code === p.name
+                    (sp) => sp.code === p.name,
                   );
                   return (
                     <Tag
                       color={searchParameterTypeToColor(
-                        searchParameters?.[paramIndex ?? 0]?.type
+                        searchParameters?.[paramIndex ?? 0]?.type,
                       )}
                       onClick={() => {
                         setSelectedSearchParameter(paramIndex ?? 0);
@@ -646,10 +646,10 @@ export function FHIRGenerativeSearchTableDisplay<Version extends FHIR_VERSION>({
                     renderer(data: unknown[]) {
                       return DataDisplay(
                         searchParameter.type,
-                        data.slice(0, 1)
+                        data.slice(0, 1),
                       );
                     },
-                  } as Parameters<typeof Table>[0]["columns"][number])
+                  }) as Parameters<typeof Table>[0]["columns"][number],
               ),
               ...(columns ?? []),
             ]}
@@ -662,14 +662,14 @@ export function FHIRGenerativeSearchTableDisplay<Version extends FHIR_VERSION>({
                     (
                       parameters.find((p) => p.name === "_offset")?.value[0] ??
                       0
-                    ).toString()
+                    ).toString(),
                   )}{" "}
                   to{" "}
                   {parseInt(
                     (
                       parameters.find((p) => p.name === "_offset")?.value[0] ??
                       0
-                    ).toString()
+                    ).toString(),
                   ) + pagination}{" "}
                   rows
                 </span>
@@ -682,8 +682,8 @@ export function FHIRGenerativeSearchTableDisplay<Version extends FHIR_VERSION>({
                         (
                           parameters.find((p) => p.name === "_offset")
                             ?.value[0] ?? 0
-                        ).toString()
-                      ) / pagination
+                        ).toString(),
+                      ) / pagination,
                     ) + 1
                   }
                   totalPages={Math.ceil((data.total ?? 0) / pagination)}
@@ -712,7 +712,7 @@ export function FHIRGenerativeSearchTableDisplay<Version extends FHIR_VERSION>({
 }
 
 export function FHIRGenerativeSearchTable<Version extends FHIR_VERSION>(
-  props: Readonly<FHIRGenerativeSearchTableProps<Version>>
+  props: Readonly<FHIRGenerativeSearchTableProps<Version>>,
 ) {
   const pagination = 20;
   const [loading, setLoading] = useState<boolean>(true);
@@ -750,7 +750,7 @@ export function FHIRGenerativeSearchTable<Version extends FHIR_VERSION>(
           ...p,
           name: p.name,
           value: p.value.filter((v): v is string | number => v !== undefined),
-        }))
+        })),
       )
       .then((bundle) => {
         setData(bundle);
@@ -760,7 +760,7 @@ export function FHIRGenerativeSearchTable<Version extends FHIR_VERSION>(
         console.error(e);
         if (e instanceof ResponseError) {
           Toaster.error(
-            e.response.body.issue[0].diagnostics ?? "An Error Occured."
+            e.response.body.issue[0].diagnostics ?? "An Error Occured.",
           );
         }
         setData({ total: 0, resources: [] });
@@ -774,14 +774,17 @@ export function FHIRGenerativeSearchTable<Version extends FHIR_VERSION>(
         { name: "base", value: ["Resource", props.resourceType as string] },
         { name: "_count", value: ["100"] },
         { name: "_sort", value: ["code"] },
+        ...(props.parameters
+          ? [{ name: "code", value: props.parameters }]
+          : []),
       ])
       .then((params) =>
         setSearchParameters(
           params.resources.filter(
             (s) =>
-              s.expression && s.type !== "composite" && s.type !== "special"
-          )
-        )
+              s.expression && s.type !== "composite" && s.type !== "special",
+          ),
+        ),
       );
   }, [props.resourceType, props.fhirVersion]);
 

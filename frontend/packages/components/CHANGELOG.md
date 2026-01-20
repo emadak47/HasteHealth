@@ -1,5 +1,11 @@
 # @haste-health/components
 
+## 0.19.0
+
+### Minor Changes
+
+- Limit Search Parameters
+
 ## 0.18.0
 
 ### Minor Changes
