@@ -80,7 +80,7 @@ jobs:
         run: pnpm install
         working-directory: ./frontend
 
-      - name: Install dependencies
+      - name: Build dependencies
         run: pnpm ci:build
         working-directory: ./frontend
 
