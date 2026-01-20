@@ -7,11 +7,10 @@ import {
 import classNames from "classnames";
 import React, { Fragment } from "react";
 
-interface NavigationItem
-  extends React.DetailedHTMLProps<
-    React.AnchorHTMLAttributes<HTMLAnchorElement>,
-    HTMLAnchorElement
-  > {
+interface NavigationItem extends React.DetailedHTMLProps<
+  React.AnchorHTMLAttributes<HTMLAnchorElement>,
+  HTMLAnchorElement
+> {
   name: string;
 }
 
@@ -58,7 +57,7 @@ export const ProfileDropdown = ({ user, children }: ProfileDropdownProps) => {
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+        <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md  py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           {children}
         </div>
       </Transition>
@@ -80,7 +79,7 @@ export const Navigation = ({
   },
 }: NavigationProps) => {
   return (
-    <Disclosure as="nav" className="bg-white border-b">
+    <Disclosure as="nav" className=" border-b">
       {({ open }) => (
         <>
           <div className="mx-auto px-4 sm:px-6 lg:px-8">
@@ -104,7 +103,7 @@ export const Navigation = ({
                           active === item.name
                             ? "bg-orange-500 text-white"
                             : "text-orange-700 hover:bg-orange-500 hover:text-white",
-                          "cursor-pointer rounded-md px-3 py-2 text-sm font-medium"
+                          "cursor-pointer rounded-md px-3 py-2 text-sm font-medium",
                         )}
                         aria-current={active === item.name ? "page" : undefined}
                       >
@@ -146,7 +145,7 @@ export const Navigation = ({
                     active === item.name
                       ? "bg-orange-500 text-white"
                       : "text-orange-700 hover:bg-orange-500 hover:text-white",
-                    "block rounded-md px-3 py-2 text-base font-medium"
+                    "block rounded-md px-3 py-2 text-base font-medium",
                   )}
                   aria-current={item.name === active ? "page" : undefined}
                 >
@@ -180,7 +179,7 @@ export const Navigation = ({
                     href={item.href}
                     className={classNames(
                       "block rounded-md px-3 py-2 text-base font-medium",
-                      "text-orange-700 hover:bg-orange-500 hover:text-white"
+                      "text-orange-700 hover:bg-orange-500 hover:text-white",
                     )}
                   >
                     {item.name}

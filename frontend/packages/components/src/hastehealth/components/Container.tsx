@@ -26,7 +26,7 @@ export const Container = ({
         </a>
         <div
           className={classNames(
-            "w-full bg-white rounded-lg shadow dark:border md:mt-0  xl:p-0 dark:bg-gray-800 dark:border-gray-700",
+            "w-full  rounded-lg shadow dark:border md:mt-0  xl:p-0 dark:bg-gray-800 dark:border-gray-700",
             { "sm:max-w-md": size === "md", "sm:max-w-2xl": size === "lg" },
           )}
         >

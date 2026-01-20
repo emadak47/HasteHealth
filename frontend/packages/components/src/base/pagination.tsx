@@ -11,7 +11,7 @@ export interface PaginationProps {
 function paginationWindow(
   totalPages: number,
   currentPage: number,
-  window: number = 5
+  window: number = 5,
 ) {
   const half = Math.floor(window / 2);
   const start = Math.max(1, currentPage - half);
@@ -23,8 +23,10 @@ function paginationWindow(
   return pages;
 }
 
-interface PaginationItemProps
-  extends DetailedHTMLProps<HTMLAttributes<HTMLLIElement>, HTMLLIElement> {
+interface PaginationItemProps extends DetailedHTMLProps<
+  HTMLAttributes<HTMLLIElement>,
+  HTMLLIElement
+> {
   children: React.ReactNode;
   active?: boolean;
 }
@@ -43,9 +45,9 @@ const PaginationItem = ({
             "text-orange-600 border border-slate-300 bg-orange-50 hover:bg-orange-200 hover:text-orange-700 ":
               active,
 
-            "text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-700 ":
+            "text-slate-500  border border-slate-300 hover:bg-slate-100 hover:text-slate-700 ":
               !active,
-          }
+          },
         )}
       >
         {children}
@@ -83,7 +85,7 @@ export const Pagination = (props: PaginationProps) => {
         <PaginationItem
           onClick={(_e) => {
             props.onPagination(
-              Math.min(props.currentPage + 1, props.totalPages)
+              Math.min(props.currentPage + 1, props.totalPages),
             );
           }}
         >

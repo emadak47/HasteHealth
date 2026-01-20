@@ -43,7 +43,7 @@ const LOGO = () => (
 
 const LayoutExample = () => (
   <SidebarLayout
-    navbar={<div style={{ height: "64px" }} className="bg-white border-b" />}
+    navbar={<div style={{ height: "64px" }} className=" border-b" />}
     sidebar={
       <SideBar
         top={
