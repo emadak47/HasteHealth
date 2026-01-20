@@ -1,5 +1,11 @@
 # @haste-health/components
 
+## 0.18.0
+
+### Minor Changes
+
+- Components Update
+
 ## 0.17.1
 
 ### Patch Changes

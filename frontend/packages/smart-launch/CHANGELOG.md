@@ -1,5 +1,12 @@
 # @haste-health/smart-launch
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @haste-health/components@0.18.0
+
 ## 0.7.0
 
 ### Minor Changes

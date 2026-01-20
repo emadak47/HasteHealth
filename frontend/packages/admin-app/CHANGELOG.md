@@ -1,5 +1,12 @@
 # @haste-health/admin-app
 
+## 0.19.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @haste-health/components@0.18.0
+
 ## 0.19.0
 
 ### Minor Changes
