@@ -470,6 +470,7 @@ fn parse_request_3(
 
 /*
 vread            	  /[type]/[id]/_history/[vid]	        GET‡	N/A	N/A	N/A	N/A
+compartment-request   /[type]/[id]/[compartment-type]/[additional]  GET N/A N/A N/A N/A
 */
 fn parse_request_4(
     _fhir_version: SupportedFHIRVersions,
@@ -482,7 +483,7 @@ fn parse_request_4(
             id: url_chunks[1].to_string(),
             version_id: VersionId::new(url_chunks[3].to_string()),
         }))
-    } else {
+    } else if req.method == Method::GET {
         Ok(FHIRRequest::Compartment(CompartmentRequest {
             resource_type: ResourceType::try_from(url_chunks[0].as_str())?,
             id: url_chunks[1].to_string(),
@@ -491,6 +492,11 @@ fn parse_request_4(
                 id: url_chunks[3].to_string(),
             })),
         }))
+    } else {
+        Err(FHIRRequestParsingError::Unsupported(
+            "Unsupported method for FHIR request.".to_string(),
+        )
+        .into())
     }
 }
 
