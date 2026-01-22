@@ -78,7 +78,7 @@ pub enum FHIRHTTPError {
         diagnostic = "Invalid url that could not be parsed {arg0}"
     )]
     UrlParseError(String),
-    #[error(code = "invalid", diagnostic = "FHIR Deserialization Error.")]
+    #[error(code = "invalid", diagnostic = "FHIR Deserialization Error '{arg0}'.")]
     DeserializeError(#[from] haste_fhir_serialization_json::errors::DeserializeError),
     #[error(code = "invalid", diagnostic = "FHIR Serialization Error.")]
     SerializeError(#[from] haste_fhir_serialization_json::SerializeError),

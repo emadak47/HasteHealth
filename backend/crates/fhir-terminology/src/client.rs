@@ -1,12 +1,16 @@
 use crate::{FHIRTerminology, resolvers::CanonicalResolver};
 use haste_fhir_generated_ops::generated::{CodeSystemLookup, ValueSetExpand, ValueSetValidateCode};
-use haste_fhir_model::r4::generated::{
-    resources::{
-        CodeSystem, CodeSystemConcept, Resource, ResourceType, ValueSet, ValueSetComposeInclude,
-        ValueSetComposeIncludeConceptDesignation, ValueSetExpansion, ValueSetExpansionContains,
+use haste_fhir_model::r4::{
+    datetime::DateTime,
+    generated::{
+        resources::{
+            CodeSystem, CodeSystemConcept, Resource, ResourceType, ValueSet,
+            ValueSetComposeInclude, ValueSetComposeIncludeConceptDesignation, ValueSetExpansion,
+            ValueSetExpansionContains,
+        },
+        terminology::{CodesystemContentMode, IssueType},
+        types::{FHIRDateTime, FHIRString, FHIRUri},
     },
-    terminology::{CodesystemContentMode, IssueType},
-    types::{FHIRString, FHIRUri},
 };
 use haste_fhir_operation_error::OperationOutcomeError;
 use std::{borrow::Cow, pin::Pin, sync::Arc};
@@ -240,6 +244,10 @@ fn expand_valueset<Resolver: CanonicalResolver + Sync + Send + 'static>(
             let contains = get_valueset_expansion(canonical_resolution.clone(), &value_set).await?;
             value_set.expansion = Some(ValueSetExpansion {
                 contains: Some(contains),
+                timestamp: Box::new(FHIRDateTime {
+                    value: Some(DateTime::Iso8601(chrono::Utc::now())),
+                    ..Default::default()
+                }),
                 ..Default::default()
             });
 

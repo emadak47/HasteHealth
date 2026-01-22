@@ -1648,6 +1648,7 @@ dependencies = [
 name = "haste-fhir-terminology"
 version = "0.10.2"
 dependencies = [
+ "chrono",
  "dashmap",
  "haste-fhir-client",
  "haste-fhir-generated-ops",

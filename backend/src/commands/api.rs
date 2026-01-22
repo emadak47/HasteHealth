@@ -161,7 +161,7 @@ async fn derive_resource_data_arg_file_arg_or_stdin<Type: FHIRJSONDeserializer>(
         haste_fhir_serialization_json::from_str::<Type>(&file_content).map_err(|e| {
             OperationOutcomeError::error(
                 IssueType::Exception(None),
-                format!("Failed to parse transaction file: {}", e),
+                format!("Failed to parse file: {}", e),
             )
         })
     } else {
