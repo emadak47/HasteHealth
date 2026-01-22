@@ -208,7 +208,12 @@ impl IntoResponse for FHIRResponse {
             },
 
             FHIRResponse::Delete(delete_response) => match delete_response {
-                DeleteResponse::Instance(_) => (StatusCode::NO_CONTENT, header, "").into_response(),
+                DeleteResponse::Instance(instance_delete) => (
+                    StatusCode::OK,
+                    header,
+                    haste_fhir_serialization_json::to_string(&instance_delete.resource).unwrap(),
+                )
+                    .into_response(),
                 DeleteResponse::Type(_) => (StatusCode::NO_CONTENT, header, "").into_response(),
                 DeleteResponse::System(_) => (StatusCode::NO_CONTENT, header, "").into_response(),
             },
