@@ -1,5 +1,11 @@
 # @haste-health/components
 
+## 0.20.0
+
+### Minor Changes
+
+- Alter bg
+
 ## 0.19.0
 
 ### Minor Changes
