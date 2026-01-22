@@ -219,10 +219,27 @@ pub async fn api_commands(
 
             Ok(())
         }
-        ApiCommands::Read {
-            resource_type: _,
-            id: _,
-        } => todo!(),
+        ApiCommands::Read { resource_type, id } => {
+            let resource_type = ResourceType::try_from(resource_type.as_str()).map_err(|e| {
+                OperationOutcomeError::error(
+                    IssueType::Invalid(None),
+                    format!(
+                        "'{}' is not a valid FHIR resource type: {}",
+                        resource_type, e
+                    ),
+                )
+            })?;
+
+            let result = fhir_client.read((), resource_type, id.clone()).await?;
+
+            println!(
+                "{}",
+                haste_fhir_serialization_json::to_string(&result)
+                    .expect("Failed to serialize response")
+            );
+
+            Ok(())
+        }
         ApiCommands::Patch {
             resource_type,
             id,
