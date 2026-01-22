@@ -1,5 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use haste_fhir_model::r4::generated::resources::Patient;
+use haste_fhir_model::r4::generated::resources::{Patient, Resource};
 use haste_fhir_serialization_json::FHIRJSONDeserializer;
 
 fn complex_patient(c: &mut Criterion) {
@@ -249,6 +249,14 @@ fn raw_json_complex_patient(c: &mut Criterion) {
     });
 }
 
+fn synthea_transaction_bundle(c: &mut Criterion) {
+    let bundle_string = include_str!("./fixtures/synthea_transaction_bundle.json");
+
+    c.bench_function("synthia_transaction_bundle", |b| {
+        b.iter(|| Resource::from_json_str(bundle_string).unwrap())
+    });
+}
+
 fn hl7_general_patient_example(c: &mut Criterion) {
     let patient_string = r#"
             {
@@ -426,6 +434,7 @@ criterion_group!(
     benches,
     raw_json_complex_patient,
     hl7_general_patient_example,
-    complex_patient
+    complex_patient,
+    synthea_transaction_bundle
 );
 criterion_main!(benches);
