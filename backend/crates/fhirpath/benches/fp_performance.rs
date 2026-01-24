@@ -4,6 +4,7 @@ use haste_fhir_model::r4::generated::{
     types::{FHIRString, HumanName},
 };
 use haste_fhirpath::FPEngine;
+use tokio::runtime::Runtime;
 
 fn fp_performance_simple(c: &mut Criterion) {
     let root = Patient {
@@ -18,27 +19,30 @@ fn fp_performance_simple(c: &mut Criterion) {
     };
     let engine = FPEngine::new();
     c.bench_function("fp_performance_simple", |b| {
-        b.iter(|| engine.evaluate("Patient.name.given", vec![&root]).unwrap())
+        b.to_async(Runtime::new().unwrap())
+            .iter(|| engine.evaluate("Patient.name.given", vec![&root]))
     });
 }
 
 fn parser_test_performance(c: &mut Criterion) {
     let engine = FPEngine::new();
     c.bench_function("parser_test_performance", |b| {
-        b.iter(|| engine.evaluate("1 + 2 * (3 - 4) / 5", vec![]).unwrap())
+        b.to_async(Runtime::new().unwrap())
+            .iter(|| engine.evaluate("1 + 2 * (3 - 4) / 5", vec![]))
     });
 }
 
 fn parser_test_complex(c: &mut Criterion) {
     let engine = FPEngine::new();
     c.bench_function("parser_test_complex",
-    |b| b.iter(|| engine.evaluate("$this.field + %test._asdf.test(45, $this.field) * 64 * $this.where($this.field = '23'.length())", vec![]).unwrap()));
+    |b|  b.to_async(Runtime::new().unwrap()).iter(|| engine.evaluate("$this.field + %test._asdf.test(45, $this.field) * 64 * $this.where($this.field = '23'.length())", vec![])));
 }
 
 fn parser_test_simple(c: &mut Criterion) {
     let engine = FPEngine::new();
     c.bench_function("parser_test_simple", |b| {
-        b.iter(|| engine.evaluate("$this.field", vec![]).unwrap())
+        b.to_async(Runtime::new().unwrap())
+            .iter(|| engine.evaluate("$this.field", vec![]))
     });
 }
 

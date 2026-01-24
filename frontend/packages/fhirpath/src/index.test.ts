@@ -34,8 +34,8 @@ test("Variable tests", async () => {
     await evaluate(
       "%hello.test",
       {},
-      { variables: { hello: [{ test: 4 }, { test: 3 }] } }
-    )
+      { variables: { hello: [{ test: 4 }, { test: 3 }] } },
+    ),
   ).toEqual([4, 3]);
 
   expect(
@@ -46,8 +46,8 @@ test("Variable tests", async () => {
         variables: async (name: string) => {
           return [{ test: 4 }, { test: 3 }];
         },
-      }
-    )
+      },
+    ),
   ).toEqual([4, 3]);
 });
 
@@ -67,8 +67,8 @@ test("PrimitiveExtensions", async () => {
             { test: 3 },
           ],
         },
-      }
-    )
+      },
+    ),
   ).toEqual([true]);
 });
 
@@ -146,7 +146,7 @@ test("empty", async () => {
 
 test("all", async () => {
   expect(
-    await evaluate("$this.test.all($this=1)", { test: [1, 2, 3] })
+    await evaluate("$this.test.all($this=1)", { test: [1, 2, 3] }),
   ).toEqual([false]);
   expect(await evaluate("$this.test.all($this=1)", { test: [1, 1] })).toEqual([
     true,
@@ -159,14 +159,14 @@ test("all", async () => {
 
 test("allTrue", async () => {
   expect(
-    await evaluate("$this.test.allTrue()", { test: [true, true] })
+    await evaluate("$this.test.allTrue()", { test: [true, true] }),
   ).toEqual([true]);
   expect(
-    await evaluate("$this.test.allTrue()", { test: [true, true, false] })
+    await evaluate("$this.test.allTrue()", { test: [true, true, false] }),
   ).toEqual([false]);
 
   expect(
-    await evaluate("$this.test.allTrue()", { test: [true, true, 1] })
+    await evaluate("$this.test.allTrue()", { test: [true, true, 1] }),
   ).toEqual([false]);
 
   expect(await evaluate("true.allTrue()", { test: [true, true, 1] })).toEqual([
@@ -176,30 +176,30 @@ test("allTrue", async () => {
 
 test("anyTrue", async () => {
   expect(
-    await evaluate("$this.test.anyTrue()", { test: [true, true] })
+    await evaluate("$this.test.anyTrue()", { test: [true, true] }),
   ).toEqual([true]);
   expect(
-    await evaluate("$this.test.anyTrue()", { test: [true, true, false] })
+    await evaluate("$this.test.anyTrue()", { test: [true, true, false] }),
   ).toEqual([true]);
   expect(
-    await evaluate("$this.test.anyTrue()", { test: [true, true, 1] })
+    await evaluate("$this.test.anyTrue()", { test: [true, true, 1] }),
   ).toEqual([true]);
   expect(await evaluate("false.anyTrue()", {})).toEqual([false]);
   expect(await evaluate("true.anyTrue()", {})).toEqual([true]);
   expect(
-    await evaluate("$this.test.anyTrue()", { test: [false, 5, 1] })
+    await evaluate("$this.test.anyTrue()", { test: [false, 5, 1] }),
   ).toEqual([false]);
 });
 
 test("allFalse", async () => {
   expect(
-    await evaluate("$this.test.allFalse()", { test: [0, 1, false] })
+    await evaluate("$this.test.allFalse()", { test: [0, 1, false] }),
   ).toEqual([false]);
 });
 
 test("anyFalse", async () => {
   expect(
-    await evaluate("$this.test.anyFalse()", { test: [0, 1, false] })
+    await evaluate("$this.test.anyFalse()", { test: [0, 1, false] }),
   ).toEqual([true]);
 });
 
@@ -207,32 +207,32 @@ test("subsetOf", async () => {
   expect(
     await evaluate("%set2.subsetOf(%set1)", undefined, {
       variables: { set1: [0, 1, false], set2: [0, -1], set3: ["none"] },
-    })
+    }),
   ).toEqual([false]);
   expect(
     await evaluate("%set2.subsetOf(%set1)", undefined, {
       variables: { set1: [0, 1, false], set2: [0], set3: ["none"] },
-    })
+    }),
   ).toEqual([true]);
   expect(
     await evaluate("%set2.subsetOf(%set1)", undefined, {
       variables: { set1: [0, 1, false], set2: [0, 1], set3: ["none"] },
-    })
+    }),
   ).toEqual([true]);
   expect(
     await evaluate("%set2.subsetOf(%set1)", undefined, {
       variables: { set1: [0, 1, false], set2: [0, 1, false], set3: ["none"] },
-    })
+    }),
   ).toEqual([true]);
   expect(
     await evaluate("%set1.subsetOf(%set2)", undefined, {
       variables: { set1: [0, 1, false], set2: [0, 1], set3: ["none"] },
-    })
+    }),
   ).toEqual([false]);
   expect(
     await evaluate("%set3.subsetOf(%set2)", undefined, {
       variables: { set1: [0, 1, false], set2: [0, 1], set3: ["none"] },
-    })
+    }),
   ).toEqual([false]);
 });
 
@@ -240,13 +240,13 @@ test("supersetOf", async () => {
   expect(
     await evaluate("%set1.supersetOf(%set2)", undefined, {
       variables: { set1: [0, 1, false], set2: [0, 1], set3: ["none"] },
-    })
+    }),
   ).toEqual([true]);
 
   expect(
     await evaluate("%set2.supersetOf(%set1)", undefined, {
       variables: { set1: [0, 1, false], set2: [0, 1], set3: ["none"] },
-    })
+    }),
   ).toEqual([false]);
 });
 
@@ -262,12 +262,12 @@ test("distinct", async () => {
       [{ v: 1 }, { v: 1 }, 2],
       {
         variables: { set1: [1, 1, 2] },
-      }
-    )
+      },
+    ),
   ).toEqual([false]);
 
   expect(await evaluate("$this.isDistinct()", [{ v: 1 }, { v: 1 }, 2])).toEqual(
-    [false]
+    [false],
   );
 
   expect(await evaluate("$this.isDistinct()", [{ v: 1 }, { v: 2 }])).toEqual([
@@ -288,7 +288,7 @@ test("select", async () => {
     await evaluate("$this.select($this.name.given + ' ' + $this.name.family)", [
       { name: { given: ["Bob"], family: "Jameson" } },
       { name: { given: ["Jason"], family: "Kyle" } },
-    ])
+    ]),
   ).toEqual(["Bob Jameson", "Jason Kyle"]);
 });
 
@@ -299,7 +299,7 @@ test("repeat", async () => {
         resourceType: "Questionnaire",
         item: [{ id: "1", item: [{ id: "2", item: [{ id: "4" }] }] }],
       } as Questionnaire,
-    ])
+    ]),
   ).toEqual([
     { id: "1", item: [{ id: "2", item: [{ id: "4" }] }] },
     { id: "2", item: [{ id: "4" }] },
@@ -314,8 +314,8 @@ test("indexed", async () => {
   expect(await evaluate("$this.test[0]", { test: [1, 2, 3] })).toEqual([1]);
   expect(
     (await evaluateWithMeta("$this.test[0]", { test: [1, 2, 3] })).map((v) =>
-      v.location()
-    )
+      v.location(),
+    ),
   ).toEqual([["test", 0]]);
 });
 
@@ -330,13 +330,13 @@ test("ofType", async () => {
     await evaluate("ofType(Patient)", [
       { resourceType: "Patient" },
       { resourceType: "MedicationRequest" },
-    ])
+    ]),
   ).toEqual([{ resourceType: "Patient" }]);
   expect(
     await evaluate("ofType(HumanName)", [
       { resourceType: "Patient" },
       { resourceType: "MedicationRequest" },
-    ])
+    ]),
   ).toEqual([]);
 });
 
@@ -349,9 +349,9 @@ test("Return Type meta", async () => {
           resourceType: "Patient",
           name: [{ given: ["bob"], family: "jameson" }],
         },
-        metaOptions("Patient")
+        metaOptions("Patient"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
   ).toEqual(["HumanName"]);
 
   expect(
@@ -362,9 +362,9 @@ test("Return Type meta", async () => {
           resourceType: "Patient",
           name: [{ given: ["bob"], family: "jameson" }],
         },
-        metaOptions("Patient")
+        metaOptions("Patient"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
   ).toEqual(["string"]);
 
   expect(
@@ -376,9 +376,9 @@ test("Return Type meta", async () => {
           name: [{ given: ["bob"], family: "jameson" }],
           identifier: [{ system: "mrn", value: "123" }],
         },
-        metaOptions("Patient")
+        metaOptions("Patient"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
   ).toEqual(["Identifier"]);
 
   expect(
@@ -390,9 +390,9 @@ test("Return Type meta", async () => {
           name: [{ given: ["bob"], family: "jameson" }],
           identifier: [{ system: "mrn", value: "123" }],
         },
-        metaOptions("Patient")
+        metaOptions("Patient"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
   ).toEqual(["string"]);
 
   expect(
@@ -404,9 +404,9 @@ test("Return Type meta", async () => {
           name: [{ given: ["bob"], family: "jameson" }],
           identifier: [{ system: "mrn", value: "123" }],
         },
-        metaOptions("Patient")
+        metaOptions("Patient"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
   ).toEqual(["uri"]);
 });
 
@@ -421,9 +421,9 @@ test("Typechoice meta", async () => {
           deceasedBoolean: false,
           identifier: [{ system: "mrn", value: "123" }],
         },
-        metaOptions("Patient")
+        metaOptions("Patient"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
   ).toEqual(["boolean"]);
 
   expect(
@@ -436,9 +436,9 @@ test("Typechoice meta", async () => {
           deceasedDateTime: "1980-01-01T00:00:00Z",
           identifier: [{ system: "mrn", value: "123" }],
         },
-        metaOptions("Patient")
+        metaOptions("Patient"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
   ).toEqual(["dateTime"]);
 });
 
@@ -450,8 +450,8 @@ test("is operator", async () => {
         resourceType: "Patient",
         deceasedBoolean: false,
       },
-      metaOptions("Patient")
-    )
+      metaOptions("Patient"),
+    ),
   ).toEqual([]);
 
   expect(
@@ -461,8 +461,8 @@ test("is operator", async () => {
         resourceType: "Patient",
         deceasedDateTime: "1980-01-01T00:00:00Z",
       },
-      metaOptions("Patient")
-    )
+      metaOptions("Patient"),
+    ),
   ).toEqual(["1980-01-01T00:00:00Z"]);
 });
 
@@ -474,8 +474,8 @@ test("term with TypeIdentifier", async () => {
         resourceType: "Patient",
         deceasedBoolean: false,
       },
-      metaOptions("Patient")
-    )
+      metaOptions("Patient"),
+    ),
   ).toEqual([]);
 
   expect(
@@ -485,8 +485,8 @@ test("term with TypeIdentifier", async () => {
         resourceType: "Patient",
         deceasedDateTime: "1980-01-01T00:00:00Z",
       },
-      metaOptions("Patient")
-    )
+      metaOptions("Patient"),
+    ),
   ).toEqual(["1980-01-01T00:00:00Z"]);
 });
 
@@ -495,7 +495,7 @@ test("term with TypeIdentifier 'Resource'", async () => {
     await evaluate("Resource.name", {
       resourceType: "Patient",
       name: [{ given: ["bob"], family: "waterson" }],
-    })
+    }),
   ).toEqual([{ given: ["bob"], family: "waterson" }]);
 });
 
@@ -507,8 +507,8 @@ test("union operation", async () => {
         resourceType: "Patient",
         name: [{ given: ["bob"], family: "waterson" }],
       },
-      metaOptions("Patient")
-    )
+      metaOptions("Patient"),
+    ),
   ).toEqual(["bob", "waterson"]);
 });
 
@@ -520,8 +520,8 @@ test("resolve with is operation", async () => {
         resourceType: "CarePlan",
         subject: { reference: "Patient/123" },
       } as CarePlan,
-      metaOptions("CarePlan")
-    )
+      metaOptions("CarePlan"),
+    ),
   ).toEqual([{ reference: "Patient/123" }]);
 });
 
@@ -584,8 +584,8 @@ test("Subscription extension test", async () => {
         variables: {
           typeUrl: "https://haste.health/Subscription/channel-type",
         },
-      }
-    )
+      },
+    ),
   ).toEqual(["operation"]);
 
   expect(
@@ -596,8 +596,8 @@ test("Subscription extension test", async () => {
         variables: {
           typeUrl: "https://haste.health/Subscription/operation-code",
         },
-      }
-    )
+      },
+    ),
   ).toEqual(["test-1"]);
 
   expect(
@@ -609,9 +609,9 @@ test("Subscription extension test", async () => {
           variables: {
             typeUrl: "https://haste.health/Subscription/operation-code",
           },
-        }
+        },
       )
-    ).map((v) => v.location())
+    ).map((v) => v.location()),
   ).toEqual([["channel", "_type", "extension", 1, "valueCode"]]);
   expect(
     (
@@ -622,9 +622,9 @@ test("Subscription extension test", async () => {
           variables: {
             typeUrl: "https://haste.health/Subscription/channel-type",
           },
-        }
+        },
       )
-    ).map((v) => v.location())
+    ).map((v) => v.location()),
   ).toEqual([["channel", "_type", "extension", 0, "valueCode"]]);
 });
 
@@ -637,9 +637,9 @@ test("test reference finding", async () => {
           resourceType: "CarePlan",
           subject: { reference: "Patient/123" },
         } as CarePlan,
-        metaOptions("CarePlan")
+        metaOptions("CarePlan"),
       )
-    ).map((v) => v.location())
+    ).map((v) => v.location()),
   ).toEqual([["subject"]]);
   expect(
     (
@@ -649,9 +649,9 @@ test("test reference finding", async () => {
           resourceType: "CarePlan",
           subject: { reference: "Patient/123" },
         } as CarePlan,
-        metaOptions("CarePlan")
+        metaOptions("CarePlan"),
       )
-    ).map((v) => v.location())
+    ).map((v) => v.location()),
   ).toEqual([]);
 });
 
@@ -663,8 +663,8 @@ test("children", async () => {
         resourceType: "CarePlan",
         subject: { reference: "Patient/123" },
       },
-      metaOptions("CarePlan")
-    )
+      metaOptions("CarePlan"),
+    ),
   ).toEqual([{ reference: "Patient/123" }]);
 
   expect(
@@ -675,9 +675,9 @@ test("children", async () => {
           resourceType: "CarePlan",
           subject: { reference: "Patient/123" },
         },
-        metaOptions("CarePlan")
+        metaOptions("CarePlan"),
       )
-    ).map((v) => v.location())
+    ).map((v) => v.location()),
   ).toEqual([["subject"]]);
 
   expect(
@@ -688,9 +688,9 @@ test("children", async () => {
           resourceType: "CarePlan",
           subject: { reference: "Patient/123" },
         },
-        metaOptions("CarePlan")
+        metaOptions("CarePlan"),
       )
-    ).map((v) => v.location())
+    ).map((v) => v.location()),
   ).toEqual([["subject"]]);
 });
 
@@ -704,8 +704,8 @@ test("descendants", async () => {
         deceasedBoolean: false,
         identifier: [{ system: "mrn", value: "123" }],
       },
-      metaOptions("Patient")
-    )
+      metaOptions("Patient"),
+    ),
     // Shown twice because primitives have .value property
     // Possbily revisit if descent shouldn't default to descend into primitives .value.
   ).toEqual([
@@ -739,9 +739,9 @@ test("descendants", async () => {
           deceasedBoolean: false,
           identifier: [{ system: "mrn", value: "123" }],
         },
-        metaOptions("Patient")
+        metaOptions("Patient"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
     // Shown twice because primitives have .value property
     // Possbily revisit if descent shouldn't default to descend into primitives .value.
   ).toEqual([
@@ -768,8 +768,8 @@ test("descendants", async () => {
         deceasedBoolean: false,
         identifier: [{ system: "mrn", value: "123" }],
       },
-      metaOptions("Patient")
-    )
+      metaOptions("Patient"),
+    ),
   ).toEqual([
     {
       system: "mrn",
@@ -785,8 +785,8 @@ test("descendants", async () => {
         deceasedBoolean: false,
         identifier: [{ system: "mrn", value: "123" }],
       },
-      metaOptions("Patient")
-    )
+      metaOptions("Patient"),
+    ),
   ).toEqual(["123", "jameson", "bob"]);
 });
 
@@ -801,8 +801,8 @@ test("descendants with type filter", async () => {
         resourceType: "Practitioner",
         name: [{ given: ["Bob"] }],
       } as Practitioner,
-      metaOptions("Practitioner")
-    )
+      metaOptions("Practitioner"),
+    ),
   ).toEqual([{ reference: "urn:oid:2" }]);
 });
 
@@ -833,7 +833,7 @@ test("Get Locations for extensions", async () => {
       variables: {
         extUrl: "https://haste.health/Extension/encrypted-value",
       },
-    }
+    },
   );
   expect(nodes.map((n) => n.getValue())).toEqual(["Test"]);
   expect(nodes.map((n) => n.location())).toEqual([["name"]]);
@@ -867,7 +867,7 @@ test("Patient with name given", async () => {
         name: [{ given: ["Peter"], family: "Chalmers" }],
         resourceType: "Patient",
       },
-    })
+    }),
   ).toEqual([]);
 });
 
@@ -881,16 +881,16 @@ test("QR testing for authored", async () => {
           authored: "2024-06-27T04:22:10-05:00",
           status: "in-progress",
         },
-        metaOptions("QuestionnaireResponse.author")
+        metaOptions("QuestionnaireResponse.author"),
       )
-    ).map((v) => v.meta()?.type)
+    ).map((v) => v.meta()?.type),
   ).toEqual([]);
 });
 
 test("Replace function test", async () => {
   const result = await evaluate(
     "'Hello, World!'.replace('World', 'Universe')",
-    {}
+    {},
   );
   expect(result).toEqual(["Hello, Universe!"]);
 });
@@ -904,8 +904,8 @@ test("Type function", async () => {
         authored: "2024-06-27T04:22:10-05:00",
         status: "in-progress",
       },
-      metaOptions("QuestionnaireResponse")
-    )
+      metaOptions("QuestionnaireResponse"),
+    ),
   ).toEqual(["dateTime"]);
 });
 
@@ -915,7 +915,7 @@ test("Membership", async () => {
       variables: {
         collection: ["Test", "Test2"],
       },
-    })
+    }),
   ).toEqual([true]);
 
   expect(
@@ -923,7 +923,7 @@ test("Membership", async () => {
       variables: {
         collection: ["Test"],
       },
-    })
+    }),
   ).toEqual([false]);
 
   expect(
@@ -931,7 +931,7 @@ test("Membership", async () => {
       variables: {
         collection: ["Test"],
       },
-    })
+    }),
   ).toEqual([true]);
 
   expect(
@@ -939,7 +939,7 @@ test("Membership", async () => {
       variables: {
         collection: ["Test"],
       },
-    })
+    }),
   ).toEqual([false]);
 });
 
@@ -952,7 +952,7 @@ test("Test derive type information from variables", async () => {
           name: [{ given: ["Bob"], family: "Jameson" }],
         },
       },
-    })
+    }),
   ).toEqual([
     {
       resourceType: "Patient",
@@ -968,7 +968,7 @@ test("Test derive type information from variables", async () => {
           name: [{ given: ["Bob"], family: "Jameson" }],
         },
       },
-    })
+    }),
   ).toEqual([]);
 });
 
@@ -993,7 +993,7 @@ test("Complex variable type filter eval", async () => {
             },
           },
         },
-      }
-    )
+      },
+    ),
   ).toEqual([{ reference: "Patient/noO83wMVGPs2LDH2Dqd0KB" }]);
 });
