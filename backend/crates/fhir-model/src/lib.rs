@@ -393,4 +393,80 @@ mod tests {
             k
         );
     }
+
+    #[test]
+    fn null_extension_many() {
+        let patient_string = r#"
+        {
+            "resourceType": "Patient",
+            "name": [
+                {
+                    "family": "Doe",
+                    "given": ["John", "A."],
+                    "_given": [null, {"id": "given-2"}],
+                    "prefix": ["Mr."]
+                }
+            ]
+        }"#;
+
+        let patient = Patient::from_json_str(patient_string).unwrap();
+
+        assert_eq!(
+            patient.name.as_ref().unwrap()[0].given.as_ref().unwrap()[0]
+                .value
+                .as_ref()
+                .unwrap(),
+            "John"
+        );
+
+        assert_eq!(
+            patient.name.as_ref().unwrap()[0].given.as_ref().unwrap()[0]
+                .id
+                .is_none(),
+            true,
+        );
+
+        assert_eq!(
+            patient.name.as_ref().unwrap()[0].given.as_ref().unwrap()[1]
+                .id
+                .as_ref()
+                .unwrap(),
+            "given-2",
+        );
+
+        assert_eq!(
+            haste_fhir_serialization_json::to_string(&patient).unwrap(),
+            "{\"resourceType\":\"Patient\",\"name\":[{\"family\":\"Doe\",\"_given\":[null,{\"id\":\"given-2\"}],\"given\":[\"John\",\"A.\"],\"prefix\":[\"Mr.\"]}]}"
+        );
+    }
+
+    #[test]
+    fn test_with_nulls_array_primitives() {
+        let patient_string = r#"{
+        "resourceType": "Patient",
+        "name": [
+          {
+            "family": "Doe",
+            "_given": [
+              null,
+              {
+                "id": "given-2"
+              }
+            ],
+            "given": [
+              "John",
+              null
+            ],
+            "prefix": [
+              "Mr."
+            ]
+          }
+        ]}"#;
+
+        let patient = Patient::from_json_str(patient_string).unwrap();
+        assert_eq!(
+            haste_fhir_serialization_json::to_string(&patient).unwrap(),
+            "{\"resourceType\":\"Patient\",\"name\":[{\"family\":\"Doe\",\"_given\":[null,{\"id\":\"given-2\"}],\"given\":[\"John\",null],\"prefix\":[\"Mr.\"]}]}"
+        );
+    }
 }
