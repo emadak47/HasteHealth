@@ -712,7 +712,7 @@ Patient {
 Because validation of these code values is enforced at the type level we get a lot of safety when working with FHIR data.
 For example you cannot accidentally assign an invalid value to Patient.gender.
 
-Because we deserialize directly into these types we get very fast validation of FHIR data.
+Also because we deserialize directly into types we get very fast validation of a significant subset of FHIR terminologies.
 
 ### Ecosystem and Cargo
 Similiar to Clojure ecosystem the Rust libraries are generally very high quality and well maintained.  
