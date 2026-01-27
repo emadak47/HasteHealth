@@ -14,7 +14,7 @@ use axum::{
     Extension, Router, ServiceExt,
     body::Body,
     extract::{DefaultBodyLimit, OriginalUri, Path, State},
-    http::{Method, Uri},
+    http::{HeaderName, HeaderValue, Method, Uri},
     middleware::from_fn,
     response::{IntoResponse, Response},
     routing::{any, get, post},
@@ -34,6 +34,7 @@ use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
     normalize_path::NormalizePathLayer,
+    set_header::SetResponseHeaderLayer,
     trace::TraceLayer,
 };
 use tower_sessions::{
@@ -42,6 +43,8 @@ use tower_sessions::{
 };
 use tower_sessions_sqlx_store::PostgresStore;
 use tracing::{Instrument, Level, span};
+
+const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Deserialize)]
 struct FHIRHandlerPath {
@@ -225,11 +228,15 @@ pub async fn server() -> Result<NormalizePath<Router>, OperationOutcomeError> {
         .nest("/w/{tenant}", tenant_router)
         .layer(
             ServiceBuilder::new()
-                // 4mb by default.
                 .layer(TraceLayer::new_for_http())
+                // 4mb by default.
                 .layer(DefaultBodyLimit::max(max_body_size))
                 .layer(CompressionLayer::new())
                 .layer(SecurityHeaderLayer::new())
+                .layer(SetResponseHeaderLayer::overriding(
+                    HeaderName::from_static("x-api-version"),
+                    HeaderValue::from_static(SERVER_VERSION),
+                ))
                 .layer(
                     SessionManagerLayer::new(session_store)
                         .with_secure(true)
