@@ -1,3 +1,4 @@
 [workspace]
 allow_dirty = true
 changelog_update = false
+git_release_enable = false
