@@ -236,7 +236,7 @@ fn process_leaf(sd: &StructureDefinition, element: &ElementDefinition) -> Vec<Pr
         if is_fhir_primitive_type(type_code) {
             vec![
                 Processed {
-                    cardinality: cardinality.clone(),
+                    cardinality: (0, cardinality.1.clone()),
                     field: format!("_{}", field_name),
                     schema: datatype_reference_schema("Element"),
                 },
