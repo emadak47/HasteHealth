@@ -77,8 +77,8 @@ fn read_resource_operation(resource_name: &str) -> OpenAPIOperation {
             OpenAPIOperationResponse {
                 description: format!("Successful read of {} resource", resource_name),
                 content: HashMap::from([(
-                    "application/fhir+json".to_string(),
-                    json!({ "$ref": format!("#/components/schemas/{}", resource_name) }),
+                    "application/json".to_string(),
+                    json!({ "schema": {"$ref": format!("#/components/schemas/{}", resource_name) }}),
                 )]),
             },
         )]),
@@ -197,6 +197,26 @@ pub fn open_api_schema_generator(
             .schemas
             .insert(resource_name.clone(), json_schema);
     }
+
+    openapi_schema.components.schemas.insert(
+        "Element".to_string(),
+        json!({
+            "additionalProperties": false,
+            "properties": {
+                "extension": {
+                    "items": {
+                        "$ref": "#/components/schemas/Extension"
+                    },
+                    "type": "array"
+                },
+                "id": {
+                    "type": "string"
+                }
+            },
+            "required": [],
+            "type": "object"
+        }),
+    );
 
     Ok(openapi_schema)
 }
