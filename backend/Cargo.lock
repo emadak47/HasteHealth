@@ -1839,6 +1839,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "haste-openapi-schema-generator"
+version = "0.10.6"
+dependencies = [
+ "haste-fhir-model",
+ "haste-fhir-operation-error",
+ "haste-sd-to-json-schema",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "haste-pointer"
 version = "0.10.6"
 dependencies = [
@@ -1922,6 +1933,7 @@ dependencies = [
  "haste-fhir-terminology",
  "haste-fhirpath",
  "haste-jwt",
+ "haste-openapi-schema-generator",
  "haste-rate-limit",
  "haste-reflect",
  "haste-repository",

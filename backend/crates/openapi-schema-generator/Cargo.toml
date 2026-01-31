@@ -1,6 +1,6 @@
 [package]
-name = "haste-sd-to-json-schema"
-description = "Convert FHIR StructureDefinitions to JSON Schema."
+name = "haste-openapi-schema-generator"
+description = "Generate OpenAPI schemas from FHIR StructureDefinitions and Search Parameters."
 publish = false
 version.workspace = true
 authors.workspace = true
@@ -11,10 +11,6 @@ edition.workspace = true
 [dependencies]
 serde_json = { workspace = true }
 serde = { workspace = true }
+haste-sd-to-json-schema = { path = "../sd-to-json-schema", version = "0.*" }
 haste-fhir-model = { path = "../fhir-model", version = "0.*" }
 haste-fhir-operation-error = { path = "../fhir-operation-error", version = "0.*" }
-haste-codegen = { path = "../codegen", version = "0.*" }
-haste-fhir-serialization-json = { path = "../fhir-serialization-json", version = "0.*" }
-
-[dev-dependencies]
-jsonschema = "0.40.2"
