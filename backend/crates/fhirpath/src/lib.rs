@@ -739,10 +739,6 @@ async fn evaluate_operation<'a>(
             })
             .await
         }
-        Operation::Polarity(_, _) => Err(FHIRPathError::NotImplemented("Polarity".to_string())),
-        Operation::DivisionTruncated(_, _) => Err(FHIRPathError::NotImplemented(
-            "DivisionTruncated".to_string(),
-        )),
         Operation::Modulo(_, _) => Err(FHIRPathError::NotImplemented("Modulo".to_string())),
         Operation::Is(expression, type_name) => {
             let left = evaluate_expression(expression, context, config).await?;
@@ -777,6 +773,10 @@ async fn evaluate_operation<'a>(
                 }
             }
         }
+        Operation::Polarity(_, _) => Err(FHIRPathError::NotImplemented("Polarity".to_string())),
+        Operation::DivisionTruncated(_, _) => Err(FHIRPathError::NotImplemented(
+            "DivisionTruncated".to_string(),
+        )),
         Operation::LessThan(_, _) => Err(FHIRPathError::NotImplemented("LessThan".to_string())),
         Operation::GreaterThan(_, _) => {
             Err(FHIRPathError::NotImplemented("GreaterThan".to_string()))
