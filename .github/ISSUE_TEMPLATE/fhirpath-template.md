@@ -2,7 +2,7 @@
 name: FHIRPath Template
 about: FHIRPath Template
 title: FHIRPath implement "[NAME]" function
-labels: ''
+labels: fhirpath, good first issue
 assignees: ''
 
 ---
