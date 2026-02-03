@@ -30,6 +30,28 @@ pub fn string(
                 }
             }))
         }
+        Some("contains") => {
+            let string_params = parsed_parameter
+                .value
+                .iter()
+                .map(|value| {
+                    Ok(json!({
+                        "wildcard":{
+                            search_param.url.value.as_ref().unwrap(): {
+                                "value": format!("*{}*", value),
+                                "case_insensitive": true
+                            }
+                        }
+                    }))
+                })
+                .collect::<Result<Vec<serde_json::Value>, QueryBuildError>>()?;
+
+            Ok(json!({
+                "bool": {
+                    "should": string_params
+                }
+            }))
+        }
         Some(modifier) => Err(QueryBuildError::UnsupportedModifier(modifier.to_string())),
         None => {
             let string_params = parsed_parameter
