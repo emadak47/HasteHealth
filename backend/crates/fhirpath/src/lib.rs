@@ -796,7 +796,22 @@ async fn evaluate_operation<'a>(
         Operation::Contains(_left, _right) => {
             Err(FHIRPathError::NotImplemented("Contains".to_string()))
         }
-        Operation::XOr(_left, _right) => Err(FHIRPathError::NotImplemented("XOr".to_string())),
+        Operation::XOr(left, right) => {
+            operation_1(left, right, context, config, |left, right| {
+                let left_value = downcast_bool(left.values[0])?;
+                let right_value = downcast_bool(right.values[0])?;
+
+                Ok(
+                    left.new_context_from(vec![left.allocate(ResolvedValue::Box(Box::new(
+                        FHIRBoolean {
+                            value: Some(left_value ^ right_value),
+                            ..Default::default()
+                        },
+                    )))]),
+                )
+            })
+            .await
+        }
         Operation::Implies(_left, _right) => {
             Err(FHIRPathError::NotImplemented("Implies".to_string()))
         }
@@ -1457,6 +1472,24 @@ mod tests {
             let s = r.as_any().downcast_ref::<f64>().unwrap().clone();
 
             assert_eq!(s, 51.0);
+        }
+    }
+
+    #[tokio::test]
+    async fn xor_operation() {
+        let engine = FPEngine::new();
+        let result = engine.evaluate("true xor true", vec![]).await.unwrap();
+
+        for r in result.iter() {
+            let b: bool = r
+                .as_any()
+                .downcast_ref::<FHIRBoolean>()
+                .unwrap()
+                .value
+                .unwrap()
+                .clone();
+
+            assert_eq!(b, false);
         }
     }
 
