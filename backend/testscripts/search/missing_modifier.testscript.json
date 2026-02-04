@@ -308,7 +308,6 @@
                         "code": "deleteCondMultiple"
                     },
                     "params": "_tag=missing-modifier-test",
-                    "resource": "Patient",
                     "encodeRequestUrl": false
                 }
             }
