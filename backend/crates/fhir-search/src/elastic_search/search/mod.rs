@@ -139,6 +139,60 @@ fn sort_build(
     }
 }
 
+// Handles :missing modifier for string,number,uri which have no nesting. For other modifiers, they are handled in their respective clause functions.
+fn simple_missing_modifier(
+    search_param: &SearchParameter,
+    parsed_parameter: &Parameter,
+) -> Result<serde_json::Value, QueryBuildError> {
+    if matches!(
+        search_param.type_.as_ref(),
+        SearchParamType::Composite(None)
+    ) {
+        return Err(QueryBuildError::UnsupportedModifier("missing".to_string()));
+    }
+
+    let url = search_param
+        .url
+        .value
+        .as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or_default();
+
+    let field_name = match search_param.type_.as_ref() {
+        SearchParamType::Uri(_) | SearchParamType::String(_) | SearchParamType::Number(_) => url,
+        _ => {
+            return Err(QueryBuildError::UnsupportedModifier("missing".to_string()));
+        }
+    };
+
+    match parsed_parameter.value.as_slice() {
+        [v] => match v.as_str() {
+            "false" => Ok(json!({
+                "exists": {
+                    "field": field_name
+                }
+            })),
+            "true" => Ok(json!({
+                "bool": {
+                    "must_not": {
+                        "exists": {
+                            "field": field_name
+                        }
+                    }
+                }
+            })),
+            _ => Err(QueryBuildError::InvalidParameterValue(
+                parsed_parameter.name.clone(),
+            )),
+        },
+        _ => {
+            return Err(QueryBuildError::InvalidParameterValue(
+                parsed_parameter.name.clone(),
+            ));
+        }
+    }
+}
+
 fn parameter_to_elasticsearch_clauses(
     search_param: &SearchParameter,
     parsed_parameter: &Parameter,
@@ -151,7 +205,9 @@ fn parameter_to_elasticsearch_clauses(
         SearchParamType::Token(_) => clauses::token(parsed_parameter, search_param),
         SearchParamType::Number(_) => clauses::number(parsed_parameter, search_param),
         SearchParamType::String(_) => clauses::string(parsed_parameter, search_param),
-        _ => todo!(),
+        _ => Err(QueryBuildError::UnsupportedParameter(
+            search_param.name.value.clone().unwrap_or_default(),
+        )),
     }
 }
 
