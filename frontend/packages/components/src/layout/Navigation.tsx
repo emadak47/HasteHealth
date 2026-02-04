@@ -74,7 +74,7 @@ export const Navigation = ({
   brand = {
     name: "HasteHealth",
     logo: {
-      url: "https://genfhi.com/static/media/icon.ae932dc68c2c119c7df4e17bd1c15ccb.svg",
+      url: "https://haste.health/img/logo.svg",
     },
   },
 }: NavigationProps) => {
