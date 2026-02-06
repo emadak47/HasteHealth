@@ -71,7 +71,7 @@ pub fn date(
                                     {
                                         "range": {
                                             search_param_url + ".start": {
-                                                "gte": date_range.end
+                                                "gte": date_range.start
                                             }
                                         }
                                     }
@@ -89,7 +89,7 @@ pub fn date(
                                     {
                                         "range": {
                                             search_param_url + ".end": {
-                                                "lte": date_range.start
+                                                "lte": date_range.end
                                             }
                                         }
                                     }
