@@ -1,0 +1,189 @@
+{
+    "id": "date-le-ge-prefix-patient",
+    "url": "https://haste.health/fhir/TestScript/bundle-date-le-ge-prefix",
+    "title": "Full url checks",
+    "name": "Bundle date-le-ge-prefix tests",
+    "status": "active",
+    "description": "Validate full url is present on search and hist requests.",
+    "resourceType": "TestScript",
+    "contained": [
+        {
+            "id": "patient-chalmers",
+            "resourceType": "Patient",
+            "deceasedDateTime": "2021-08-01",
+            "meta": {
+                "tag": [
+                    {
+                        "code": "date-le-ge-prefix-test"
+                    }
+                ]
+            },
+            "name": [
+                {
+                    "family": "Chalmers",
+                    "given": [
+                        "Peter"
+                    ]
+                }
+            ]
+        }
+    ],
+    "fixture": [
+        {
+            "id": "fixture-patient",
+            "resource": {
+                "reference": "#patient-chalmers"
+            },
+            "autocreate": false,
+            "autodelete": false
+        }
+    ],
+    "test": [
+        {
+            "id": "01-date-le-ge-prefix-checks",
+            "name": "Full url check.",
+            "action": [
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "create"
+                        },
+                        "resource": "Patient",
+                        "sourceId": "fixture-patient",
+                        "responseId": "create-response",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "search"
+                        },
+                        "resource": "Patient",
+                        "params": "death-date=ge2021-07-31&_tag=date-le-ge-prefix-test",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Bundle.entry.count()",
+                        "operator": "equals",
+                        "value": "1",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "search"
+                        },
+                        "resource": "Patient",
+                        "params": "death-date=ge2021-08-01&_tag=date-le-ge-prefix-test",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Bundle.entry.count()",
+                        "operator": "equals",
+                        "value": "1",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "search"
+                        },
+                        "resource": "Patient",
+                        "params": "death-date=ge2021-08-02&_tag=date-le-ge-prefix-test",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Bundle.entry.count()",
+                        "operator": "equals",
+                        "value": "0",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "search"
+                        },
+                        "resource": "Patient",
+                        "params": "death-date=le2021-08-02&_tag=date-le-ge-prefix-test",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Bundle.entry.count()",
+                        "operator": "equals",
+                        "value": "1",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "search"
+                        },
+                        "resource": "Patient",
+                        "params": "death-date=le2021-08-01&_tag=date-le-ge-prefix-test",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Bundle.entry.count()",
+                        "operator": "equals",
+                        "value": "1",
+                        "warningOnly": false
+                    }
+                },
+                {
+                    "operation": {
+                        "type": {
+                            "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                            "code": "search"
+                        },
+                        "resource": "Patient",
+                        "params": "death-date=le2021-07-31&_tag=date-le-ge-prefix-test",
+                        "encodeRequestUrl": false
+                    }
+                },
+                {
+                    "assert": {
+                        "expression": "Bundle.entry.count()",
+                        "operator": "equals",
+                        "value": "0",
+                        "warningOnly": false
+                    }
+                }
+            ]
+        }
+    ],
+    "teardown": {
+        "action": [
+            {
+                "operation": {
+                    "type": {
+                        "system": "http://terminology.hl7.org/CodeSystem/testscript-operation-codes",
+                        "code": "deleteCondMultiple"
+                    },
+                    "params": "_tag=date-le-ge-prefix-test",
+                    "encodeRequestUrl": false
+                }
+            }
+        ]
+    }
+}

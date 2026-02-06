@@ -62,6 +62,42 @@ pub fn date(
                         }
                     }
                 })),
+                Some("ge") => Ok(json!({
+                    "nested": {
+                        "path": search_param_url,
+                        "query": {
+                            "bool": {
+                                "filter": [
+                                    {
+                                        "range": {
+                                            search_param_url + ".start": {
+                                                "gte": date_range.end
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                })),
+                Some("le") => Ok(json!({
+                    "nested": {
+                        "path": search_param_url,
+                        "query": {
+                            "bool": {
+                                "filter": [
+                                    {
+                                        "range": {
+                                            search_param_url + ".end": {
+                                                "lte": date_range.start
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                })),
                 Some("eq") | None => Ok(json!({
                     "nested": {
                         "path": search_param_url,
