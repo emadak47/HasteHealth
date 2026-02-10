@@ -392,7 +392,7 @@ export default function Home(): ReactNode {
               <div className="order-2 md:order-1">
                 <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
                   <DescriptionColumn
-                    title={"Model Context Protocl"}
+                    title={"Model Context Protocol"}
                     description="Easily provide LLMs with secure, real-time access to patient data using Haste's Model Context Protocol (MCP) implementation."
                   />
                   <DescriptionColumn
