@@ -1,4 +1,5 @@
-use crate::{FHIRTerminology, resolvers::CanonicalResolver};
+use crate::FHIRTerminology;
+use haste_fhir_client::canonical_resolver::CanonicalResolver;
 use haste_fhir_generated_ops::generated::{CodeSystemLookup, ValueSetExpand, ValueSetValidateCode};
 use haste_fhir_model::r4::{
     datetime::DateTime,
@@ -15,35 +16,31 @@ use haste_fhir_model::r4::{
 use haste_fhir_operation_error::OperationOutcomeError;
 use std::{borrow::Cow, pin::Pin, sync::Arc};
 
-pub struct FHIRCanonicalTerminology<Resolver: CanonicalResolver> {
-    resolver: Arc<Resolver>,
-}
+pub struct FHIRCanonicalTerminology {}
 
-impl<Resolver: CanonicalResolver> FHIRCanonicalTerminology<Resolver> {
-    pub fn new(resolver: Resolver) -> Self {
-        FHIRCanonicalTerminology {
-            resolver: Arc::new(resolver),
-        }
+impl FHIRCanonicalTerminology {
+    pub fn new() -> Self {
+        FHIRCanonicalTerminology {}
     }
 }
 
 async fn resolve_valueset<Resolver: CanonicalResolver>(
-    canonical_resolution: Arc<Resolver>,
-    input: ValueSetExpand::Input,
-) -> Result<Option<ValueSet>, OperationOutcomeError> {
-    if let Some(valueset) = input.valueSet.as_ref() {
-        return Ok(Some(valueset.clone()));
+    canonical_resolution: Resolver,
+    mut input: ValueSetExpand::Input,
+) -> Result<Option<Arc<Resource>>, OperationOutcomeError> {
+    if input.valueSet.is_some() {
+        let mut valueset: Option<ValueSet> = None;
+        std::mem::swap(&mut input.valueSet, &mut valueset);
+        return Ok(valueset.map(|v| Arc::new(Resource::ValueSet(v))));
     } else if let Some(url) = &input.url.as_ref().and_then(|u| u.value.as_ref()) {
-        let Resource::ValueSet(value_set) = canonical_resolution
+        let resolved_resource = canonical_resolution
             .resolve(ResourceType::ValueSet, url.to_string())
-            .await?
-        else {
-            return Ok(None);
-        };
+            .await?;
 
-        return Ok(Some(value_set));
+        Ok(resolved_resource)
+    } else {
+        Ok(None)
     }
-    Ok(None)
 }
 
 fn are_codes_inline(include: &ValueSetComposeInclude) -> bool {
@@ -67,21 +64,18 @@ fn codes_inline_to_expansion(include: &ValueSetComposeInclude) -> Vec<ValueSetEx
 }
 
 async fn resolve_codesystem<Resolver: CanonicalResolver>(
-    canonical_resolution: Arc<Resolver>,
+    canonical_resolution: Resolver,
     url: &str,
-) -> Result<Option<CodeSystem>, OperationOutcomeError> {
-    let Resource::CodeSystem(code_system) = canonical_resolution
+) -> Result<Option<Arc<Resource>>, OperationOutcomeError> {
+    let code_system = canonical_resolution
         .resolve(ResourceType::CodeSystem, url.to_string())
-        .await?
-    else {
-        return Ok(None);
-    };
+        .await?;
 
-    Ok(Some(code_system))
+    Ok(code_system)
 }
 
 async fn get_concepts(
-    codesystem: CodeSystem,
+    codesystem: &CodeSystem,
 ) -> Result<Vec<CodeSystemConcept>, OperationOutcomeError> {
     match codesystem.content.as_ref() {
         CodesystemContentMode::NotPresent(_) => Err(OperationOutcomeError::error(
@@ -147,8 +141,10 @@ fn code_system_concept_to_valueset_expansion(
         .collect()
 }
 
-async fn get_valueset_expansion_contains<Resolver: CanonicalResolver + Send + Sync + 'static>(
-    canonical_resolution: Arc<Resolver>,
+async fn get_valueset_expansion_contains<
+    Resolver: CanonicalResolver + Send + Clone + Sync + 'static,
+>(
+    canonical_resolution: Resolver,
     include: &ValueSetComposeInclude,
 ) -> Result<Vec<ValueSetExpansionContains>, OperationOutcomeError> {
     if are_codes_inline(include) {
@@ -201,8 +197,9 @@ async fn get_valueset_expansion_contains<Resolver: CanonicalResolver + Send + Sy
         Ok(contains)
     } else if let Some(system) = include.system.as_ref()
         && let Some(uri) = system.value.as_ref()
-        && let Some(code_system) =
+        && let Some(resource) =
             resolve_codesystem(canonical_resolution.clone(), uri.as_str()).await?
+        && let Resource::CodeSystem(code_system) = &*resource
     {
         let url = code_system.url.clone();
         let version = code_system.version.clone();
@@ -217,8 +214,8 @@ async fn get_valueset_expansion_contains<Resolver: CanonicalResolver + Send + Sy
     }
 }
 
-async fn get_valueset_expansion<Resolver: CanonicalResolver + Sync + Send + 'static>(
-    canonical_resolution: Arc<Resolver>,
+async fn get_valueset_expansion<Resolver: CanonicalResolver + Sync + Send + Clone + 'static>(
+    canonical_resolution: Resolver,
     value_set: &ValueSet,
 ) -> Result<Vec<ValueSetExpansionContains>, OperationOutcomeError> {
     let mut result = Vec::new();
@@ -232,17 +229,21 @@ async fn get_valueset_expansion<Resolver: CanonicalResolver + Sync + Send + 'sta
     Ok(result)
 }
 
-fn expand_valueset<Resolver: CanonicalResolver + Sync + Send + 'static>(
-    canonical_resolution: Arc<Resolver>,
+fn expand_valueset<Resolver: CanonicalResolver + Sync + Send + Clone + 'static>(
+    canonical_resolution: Resolver,
     input: ValueSetExpand::Input,
 ) -> Pin<Box<dyn Future<Output = Result<ValueSetExpand::Output, OperationOutcomeError>> + Send>> {
     // Implementation would go here
     Box::pin(async move {
-        let value_set = resolve_valueset(canonical_resolution.clone(), input).await?;
+        let resolved = resolve_valueset(canonical_resolution.clone(), input).await?;
 
-        if let Some(mut value_set) = value_set {
-            let contains = get_valueset_expansion(canonical_resolution.clone(), &value_set).await?;
-            value_set.expansion = Some(ValueSetExpansion {
+        if let Some(resource) = resolved
+            && let Resource::ValueSet(value_set) = &*resource
+        {
+            let contains = get_valueset_expansion(canonical_resolution.clone(), value_set).await?;
+            let mut expanded_valueset = value_set.clone();
+
+            expanded_valueset.expansion = Some(ValueSetExpansion {
                 contains: Some(contains),
                 timestamp: Box::new(FHIRDateTime {
                     value: Some(DateTime::Iso8601(chrono::Utc::now())),
@@ -251,7 +252,9 @@ fn expand_valueset<Resolver: CanonicalResolver + Sync + Send + 'static>(
                 ..Default::default()
             });
 
-            Ok(ValueSetExpand::Output { return_: value_set })
+            Ok(ValueSetExpand::Output {
+                return_: expanded_valueset,
+            })
         } else {
             return Err(OperationOutcomeError::error(
                 IssueType::NotFound(None),
@@ -261,17 +264,17 @@ fn expand_valueset<Resolver: CanonicalResolver + Sync + Send + 'static>(
     })
 }
 
-impl<Resolver: CanonicalResolver + Send + Sync + 'static> FHIRTerminology
-    for FHIRCanonicalTerminology<Resolver>
-{
-    async fn expand(
+impl FHIRTerminology for FHIRCanonicalTerminology {
+    async fn expand<Resolver: CanonicalResolver + Send + Clone + Sync + 'static>(
         &self,
+        resolver: Resolver,
         input: ValueSetExpand::Input,
     ) -> Result<ValueSetExpand::Output, OperationOutcomeError> {
-        expand_valueset(self.resolver.clone(), input).await
+        expand_valueset(resolver, input).await
     }
-    async fn validate(
+    async fn validate<Resolver: CanonicalResolver + Send + Clone + Sync + 'static>(
         &self,
+        resolver: Resolver,
         input: ValueSetValidateCode::Input,
     ) -> Result<ValueSetValidateCode::Output, OperationOutcomeError> {
         let Some(code) = input.code else {
@@ -283,29 +286,32 @@ impl<Resolver: CanonicalResolver + Send + Sync + 'static> FHIRTerminology
 
         // Implementation would go here
         let expansion = self
-            .expand(ValueSetExpand::Input {
-                url: input.url,
-                valueSet: input.valueSet,
-                valueSetVersion: input.valueSetVersion,
-                context: input.context,
-                contextDirection: None,
-                filter: None,
-                date: None,
-                offset: None,
-                count: None,
-                includeDesignations: None,
-                designation: None,
-                includeDefinition: None,
-                activeOnly: None,
-                excludeNested: None,
-                excludeNotForUI: None,
-                excludePostCoordinated: None,
-                displayLanguage: None,
-                exclude_system: None,
-                system_version: None,
-                check_system_version: None,
-                force_system_version: None,
-            })
+            .expand(
+                resolver,
+                ValueSetExpand::Input {
+                    url: input.url,
+                    valueSet: input.valueSet,
+                    valueSetVersion: input.valueSetVersion,
+                    context: input.context,
+                    contextDirection: None,
+                    filter: None,
+                    date: None,
+                    offset: None,
+                    count: None,
+                    includeDesignations: None,
+                    designation: None,
+                    includeDefinition: None,
+                    activeOnly: None,
+                    excludeNested: None,
+                    excludeNotForUI: None,
+                    excludePostCoordinated: None,
+                    displayLanguage: None,
+                    exclude_system: None,
+                    system_version: None,
+                    check_system_version: None,
+                    force_system_version: None,
+                },
+            )
             .await?;
 
         let valueset = expansion.return_;
@@ -347,8 +353,9 @@ impl<Resolver: CanonicalResolver + Send + Sync + 'static> FHIRTerminology
             }),
         })
     }
-    async fn lookup(
+    async fn lookup<Resolver: CanonicalResolver + Send + Clone + Sync + 'static>(
         &self,
+        _resolver: Resolver,
         _input: CodeSystemLookup::Input,
     ) -> Result<CodeSystemLookup::Output, OperationOutcomeError> {
         // Implementation would go here

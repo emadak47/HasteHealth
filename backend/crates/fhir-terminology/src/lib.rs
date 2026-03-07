@@ -1,8 +1,8 @@
+use haste_fhir_client::canonical_resolver::CanonicalResolver;
 use haste_fhir_generated_ops::generated::{CodeSystemLookup, ValueSetExpand, ValueSetValidateCode};
 use haste_fhir_operation_error::{OperationOutcomeError, derive::OperationOutcomeError};
 
 pub mod client;
-pub mod resolvers;
 
 #[derive(OperationOutcomeError, Debug)]
 pub enum TerminologyError {
@@ -15,17 +15,19 @@ pub enum TerminologyError {
 }
 
 pub trait FHIRTerminology {
-    fn expand(
+    fn expand<Resolver: CanonicalResolver + Sync + Send + Clone + 'static>(
         &self,
+        resolver: Resolver,
         input: ValueSetExpand::Input,
     ) -> impl Future<Output = Result<ValueSetExpand::Output, OperationOutcomeError>> + Send;
-    fn validate(
+    fn validate<Resolver: CanonicalResolver + Sync + Send + Clone + 'static>(
         &self,
-
+        resolver: Resolver,
         input: ValueSetValidateCode::Input,
     ) -> impl Future<Output = Result<ValueSetValidateCode::Output, OperationOutcomeError>> + Send;
-    fn lookup(
+    fn lookup<Resolver: CanonicalResolver + Sync + Send + Clone + 'static>(
         &self,
+        resolver: Resolver,
         input: CodeSystemLookup::Input,
     ) -> impl Future<Output = Result<CodeSystemLookup::Output, OperationOutcomeError>> + Send;
 }

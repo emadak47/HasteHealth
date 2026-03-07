@@ -6,11 +6,7 @@ use haste_config::Config;
 use haste_fhir_model::r4::generated::terminology::IssueType;
 use haste_fhir_operation_error::{OperationOutcomeError, derive::OperationOutcomeError};
 use haste_fhir_search::{SearchEngine, elastic_search::ElasticSearchEngine};
-use haste_fhir_terminology::{
-    FHIRTerminology,
-    client::FHIRCanonicalTerminology,
-    resolvers::{self, remote::LRUCanonicalRemoteResolver},
-};
+use haste_fhir_terminology::{FHIRTerminology, client::FHIRCanonicalTerminology};
 use haste_fhirpath::FPEngine;
 use haste_repository::{Repository, pg::PGConnection};
 use sqlx::{Pool, Postgres};
@@ -122,13 +118,7 @@ impl<
 pub async fn create_services(
     config: Arc<dyn Config<ServerEnvironmentVariables>>,
 ) -> Result<
-    Arc<
-        AppState<
-            PGConnection,
-            ElasticSearchEngine,
-            FHIRCanonicalTerminology<LRUCanonicalRemoteResolver<PGConnection, ElasticSearchEngine>>,
-        >,
-    >,
+    Arc<AppState<PGConnection, ElasticSearchEngine, FHIRCanonicalTerminology>>,
     OperationOutcomeError,
 > {
     let pool = get_pool(config.as_ref()).await;
@@ -159,9 +149,7 @@ pub async fn create_services(
 
     let pool = Arc::new(PGConnection::pool(pool.clone()));
 
-    let terminology = Arc::new(FHIRCanonicalTerminology::new(
-        resolvers::remote::LRUCanonicalRemoteResolver::new(pool.clone(), search_engine.clone()),
-    ));
+    let terminology = Arc::new(FHIRCanonicalTerminology::new());
 
     let can_mutate: String = config
         .get(ServerEnvironmentVariables::AllowArtifactMutations)

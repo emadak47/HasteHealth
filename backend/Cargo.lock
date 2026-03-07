@@ -1982,6 +1982,7 @@ dependencies = [
 name = "haste-codegen"
 version = "0.11.0"
 dependencies = [
+ "haste-fhir-client",
  "haste-fhir-generated-ops",
  "haste-fhir-model",
  "haste-fhir-operation-error",
@@ -2145,9 +2146,7 @@ dependencies = [
  "haste-fhir-generated-ops",
  "haste-fhir-model",
  "haste-fhir-operation-error",
- "haste-fhir-search",
  "haste-jwt",
- "haste-repository",
 ]
 
 [[package]]
@@ -2308,6 +2307,7 @@ dependencies = [
  "axum-extra",
  "base64",
  "chrono",
+ "dashmap",
  "dotenvy",
  "haste-access-control",
  "haste-artifacts",
