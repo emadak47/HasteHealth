@@ -1,6 +1,66 @@
 use haste_reflect::MetaValue;
 use std::sync::Arc;
 
+mod escape;
+
+#[derive(Clone)]
+pub struct Path(String);
+
+impl Path {
+    pub fn new() -> Self {
+        Self("".to_string())
+    }
+    pub fn descend(&self, field: &str) -> Self {
+        Self(format!("{}/{}", self.0, escape::escape_field(field)))
+    }
+    pub fn ascend(&self) -> Option<(Self, String)> {
+        if self.0.is_empty() {
+            None
+        } else {
+            let mut parts = self.0.rsplitn(2, '/');
+            let field = parts.next().unwrap();
+            let parent_path = parts.next().unwrap_or("");
+
+            Some((Path(parent_path.to_string()), escape::unescape_field(field)))
+        }
+    }
+
+    pub fn get<'a>(&self, value: &'a dyn MetaValue) -> Option<&'a dyn MetaValue> {
+        let mut current = value;
+        // Skip the first empty part from the leading '/'
+        for part in self.0.split('/').skip(1) {
+            let k = Key::from_str(&escape::unescape_field(part));
+
+            match k {
+                Key::Field(field) => {
+                    current = current.get_field(&field)?;
+                }
+                Key::Index(index) => {
+                    current = current.get_index(index)?;
+                }
+            }
+        }
+
+        Some(current)
+    }
+}
+
+#[derive(Debug)]
+pub enum Key {
+    Field(String),
+    Index(usize),
+}
+
+impl Key {
+    pub fn from_str(field: &str) -> Self {
+        if let Ok(index) = field.parse::<usize>() {
+            Key::Index(index)
+        } else {
+            Key::Field(field.to_string())
+        }
+    }
+}
+
 #[derive(Clone)]
 struct ChildPointer<U>(*const U);
 
@@ -8,66 +68,56 @@ unsafe impl<U> Send for ChildPointer<U> {}
 unsafe impl<U> Sync for ChildPointer<U> {}
 
 #[derive(Clone)]
-pub struct Pointer<T: MetaValue, U: MetaValue> {
+pub struct TypedPointer<T: MetaValue, U: MetaValue> {
     root: Arc<T>,
     value: ChildPointer<U>,
-    path: String,
+    path: Path,
 }
 
-pub enum Key {
-    Field(String),
-    Index(usize),
-}
-
-fn path_descend(path: &str, key: &str) -> String {
-    format!("{}/{}", path, key)
-}
-
-impl<'a, Root: MetaValue, U: MetaValue> Pointer<Root, U> {
-    pub fn new(value: Arc<Root>) -> Pointer<Root, Root> {
-        Pointer {
+impl<Root: MetaValue, U: MetaValue> TypedPointer<Root, U> {
+    pub fn new(value: Arc<Root>) -> TypedPointer<Root, Root> {
+        TypedPointer {
             value: ChildPointer(&*value.as_ref() as *const Root),
             root: value,
-            path: "".to_string(),
+            path: Path::new(),
         }
     }
 
-    pub fn root(&self) -> Pointer<Root, Root> {
-        Pointer {
+    pub fn root(&self) -> TypedPointer<Root, Root> {
+        TypedPointer {
             value: ChildPointer(&*self.root.as_ref() as *const Root),
             root: self.root.clone(),
-            path: "".to_string(),
+            path: Path::new(),
         }
     }
 
     pub fn path(&self) -> &str {
-        self.path.as_str()
+        self.path.0.as_str()
     }
 
     pub fn value(&self) -> Option<&U> {
         let p = unsafe { (*self.value.0).as_any().downcast_ref::<U>() };
-
         p
     }
 
-    pub fn descend<Child: MetaValue>(&'a self, key: &Key) -> Option<Pointer<Root, Child>> {
-        match key {
+    pub fn descend<Child: MetaValue>(&self, field: &Key) -> Option<TypedPointer<Root, Child>> {
+        match field {
             Key::Field(field) => self.value().and_then(|v| {
                 v.get_field(field)
                     .and_then(|v| v.as_any().downcast_ref::<Child>())
-                    .map(|child| Pointer {
+                    .map(|child| TypedPointer {
                         root: self.root.clone(),
                         value: ChildPointer(&*child as *const Child),
-                        path: path_descend(self.path.as_str(), field.as_str()),
+                        path: self.path.descend(field),
                     })
             }),
             Key::Index(index) => self.value().and_then(|v| {
                 v.get_index(*index)
                     .and_then(|v| v.as_any().downcast_ref::<Child>())
-                    .map(|child| Pointer {
+                    .map(|child| TypedPointer {
                         root: self.root.clone(),
                         value: ChildPointer(&*child as *const Child),
-                        path: path_descend(self.path.as_str(), index.to_string().as_str()),
+                        path: self.path.descend(&index.to_string()),
                     })
             }),
         }
@@ -95,7 +145,7 @@ mod test {
             ..Default::default()
         });
 
-        let pointer = Pointer::<Patient, Patient>::new(patient);
+        let pointer = TypedPointer::<Patient, Patient>::new(patient);
         let pointer = pointer
             .descend::<Vec<Box<HumanName>>>(&Key::Field("name".to_string()))
             .unwrap();
@@ -111,5 +161,34 @@ mod test {
 
         assert_eq!(pointer.path(), "/name/0/family/value");
         assert_eq!(pointer.value(), Some(&"Doe".to_string()));
+    }
+
+    #[test]
+    fn test_path() {
+        let patient = Arc::new(Patient {
+            id: Some("patient-1".to_string()),
+            name: Some(vec![Box::new(HumanName {
+                family: Some(Box::new(FHIRString {
+                    value: Some("Doe".to_string()),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            })]),
+            ..Default::default()
+        });
+
+        let path = Path::new()
+            .descend("name")
+            .descend("0")
+            .descend("family")
+            .descend("value");
+
+        assert_eq!(path.0, "/name/0/family/value");
+        let k = path.get(patient.as_ref());
+
+        assert_eq!(
+            k.and_then(|v| v.as_any().downcast_ref::<String>()),
+            Some(&"Doe".to_string())
+        );
     }
 }
