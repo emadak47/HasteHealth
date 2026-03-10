@@ -1,10 +1,16 @@
 use haste_reflect::MetaValue;
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 mod escape;
 
 #[derive(Clone)]
 pub struct Path(String);
+
+impl Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl Path {
     pub fn new() -> Self {
@@ -13,7 +19,7 @@ impl Path {
     pub fn descend(&self, field: &str) -> Self {
         Self(format!("{}/{}", self.0, escape::escape_field(field)))
     }
-    pub fn ascend(&self) -> Option<(Self, String)> {
+    pub fn ascend(&self) -> Option<(Self, Key)> {
         if self.0.is_empty() {
             None
         } else {
@@ -21,11 +27,14 @@ impl Path {
             let field = parts.next().unwrap();
             let parent_path = parts.next().unwrap_or("");
 
-            Some((Path(parent_path.to_string()), escape::unescape_field(field)))
+            Some((
+                Path(parent_path.to_string()),
+                Key::from_str(&escape::unescape_field(field)),
+            ))
         }
     }
 
-    pub fn get<'a>(&self, value: &'a dyn MetaValue) -> Option<&'a dyn MetaValue> {
+    pub fn get<'a, Type: MetaValue>(&self, value: &'a dyn MetaValue) -> Option<&'a Type> {
         let mut current = value;
         // Skip the first empty part from the leading '/'
         for part in self.0.split('/').skip(1) {
@@ -41,7 +50,7 @@ impl Path {
             }
         }
 
-        Some(current)
+        current.as_any().downcast_ref::<Type>()
     }
 }
 
@@ -184,11 +193,8 @@ mod test {
             .descend("value");
 
         assert_eq!(path.0, "/name/0/family/value");
-        let k = path.get(patient.as_ref());
+        let k = path.get::<String>(patient.as_ref());
 
-        assert_eq!(
-            k.and_then(|v| v.as_any().downcast_ref::<String>()),
-            Some(&"Doe".to_string())
-        );
+        assert_eq!(k, Some(&"Doe".to_string()));
     }
 }
