@@ -13,33 +13,40 @@ use haste_reflect::MetaValue;
 
 use crate::FHIRProfileCTX;
 
-/**
- * Check if the element is constrained to profiles type.
- * @param element ElementDefinition to check
- * @param type The type found on the element.
- * @returns true|false as to whether the element is constrained to the type.
- */
-// fn validate_type_if_multiple_types_constrained<'a>(
-//     ctx: FHIRProfileCTX<'a, impl CanonicalResolver>,
-//     element: &ElementDefinition,
-//     type_: &str,
-// ) -> bool {
-//     let Some(types) = &element.type_ else {
-//         return true;
-//     };
+/// Check if the element is constrained to profiles type.
+///
+/// # Arguments
+///
+/// * `ctx` - The FHIRProfileCTX containing the profile and root data.
+/// * `element` - ElementDefinition to check
+/// * `type_` - The type found on the element
+fn validate_type_if_multiple_types_constrained<'a>(
+    _ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
+    element: &ElementDefinition,
+    type_: Option<&str>,
+) -> Vec<OperationOutcomeIssue> {
+    let Some(types) = &element.type_ else {
+        return vec![];
+    };
 
-//     if types
-//         .iter()
-//         .find(|t| t.code.value.as_ref().map(|s| s.as_str()) == Some(type_))
-//         .is_some()
-//     {
-//         true
-//     } else if type_ == "Element" {
-//         false
-//     } else {
-//         false
-//     }
-// }
+    if types
+        .iter()
+        .find(|t| t.code.value.as_ref().map(|s| s.as_str()) == type_)
+        .is_some()
+    {
+        vec![]
+    } else {
+        vec![outcome_issue(
+            &Path::new(),
+            IssueSeverity::Error(None),
+            IssueType::Required(None),
+            format!(
+                "Type '{}' is not allowed for this element",
+                type_.unwrap_or("unknown")
+            ),
+        )]
+    }
+}
 
 fn outcome_issue(
     value_location: &Path,
@@ -168,6 +175,12 @@ pub async fn validate_element<'a>(
         element,
         &value,
     )?);
+
+    issues.extend(validate_type_if_multiple_types_constrained(
+        ctx.clone(),
+        element,
+        value.map(|v| v.typename()),
+    ));
 
     let children = traversal::ele_index_to_child_indices(elements, index)
         .map_err(|error| OperationOutcomeError::error(IssueType::Exception(None), error))?;
