@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use haste_codegen::traversal;
+use haste_codegen::{traversal, utilities::extract::field_name};
 use haste_fhir_client::canonical_resolver::CanonicalResolver;
 use haste_fhir_model::r4::generated::{
     resources::OperationOutcomeIssue, terminology::IssueType, types::ElementDefinition,
@@ -78,41 +78,74 @@ async fn split_values_into_slices(
     Ok(())
 }
 
-/// The element discriminator specifies a path that is used to discriminate slices with.
-/// However to know what the dicriminator should expect you need to use the element for the given discriminators path.
-/// For example on US-core Patient has slicing like
-/// ```json
-// "slicing" : {
-//   "discriminator" : [
-//             {
-//               "type" : "value",
-//               "path" : "url"
-//             }
-//   ],
-/// ```
-///
-/// For the race you would then look for Element.url and the fixed uri value.
-///
+/// The discriminator element specifies a path from which to compare with.
+/// To know how split should be done though we need the constant pattern etc... from that path.
+/// For example Extension.url could be the discriminator, but
+/// We need to pull from for example https://build.fhir.org/ig/HL7/US-Core/StructureDefinition-us-core-race.html
+///  the actual value of the pattern to know how to split the slice. Which would be "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race"
 #[allow(dead_code)]
-fn find_element_definition_for_discriminator() -> Result<(), OperationOutcomeError> {
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn get_slice_value_locs(
+fn find_element_definition_for_discriminator<'a>(
+    _ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
     _discriminator_element: &ElementDefinition,
-    _root: &dyn MetaValue,
-    _value_path: &Path,
 ) -> Result<(), OperationOutcomeError> {
     Ok(())
 }
 
+/// Returns all the slice locs that are relevant to the given discriminator.
+fn get_slice_value_locs(
+    discriminator_element: &ElementDefinition,
+    value: &dyn MetaValue,
+    value_path: &Path,
+) -> Result<Vec<Path>, OperationOutcomeError> {
+    let field = field_name(
+        discriminator_element
+            .path
+            .value
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or(""),
+    );
+
+    let slice_path = value_path.descend(&field);
+
+    let Some(v) = slice_path.get(value) else {
+        return Ok(vec![]);
+    };
+
+    if v.is_many() {
+        Ok(v.flatten()
+            .iter()
+            .enumerate()
+            .map(|(i, _)| slice_path.descend(&format!("{}", i)))
+            .collect())
+    } else {
+        Ok(vec![slice_path])
+    }
+}
+
 #[allow(dead_code)]
 pub fn validate_slicing_descriptor<'a>(
-    _ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
-    _slicing_descriptor: &SlicingDescriptor,
-    _value: &dyn MetaValue,
-    _value_path: &Path,
+    ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
+    slicing_descriptor: &SlicingDescriptor,
+    value: &dyn MetaValue,
+    value_path: &Path,
 ) -> Result<Vec<OperationOutcomeIssue>, OperationOutcomeError> {
+    let discriminator_element = ctx
+        .profile()
+        .snapshot
+        .as_ref()
+        .and_then(|snapshot| snapshot.element.get(slicing_descriptor.discriminator))
+        .ok_or_else(|| {
+            OperationOutcomeError::error(
+                IssueType::Exception(None),
+                format!(
+                    "Invalid slicing discriminator index: {}",
+                    slicing_descriptor.discriminator
+                ),
+            )
+        })?;
+
+    let _slice_value_locs = get_slice_value_locs(discriminator_element, value, value_path)?;
+
     Ok(vec![])
 }
