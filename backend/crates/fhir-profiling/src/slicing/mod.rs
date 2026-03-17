@@ -1,15 +1,20 @@
 use std::sync::Arc;
 
-use haste_codegen::{traversal, utilities::extract::field_name};
+use haste_codegen::{
+    traversal::{self, ele_index_to_child_indices},
+    utilities::extract::field_name,
+};
 use haste_fhir_client::canonical_resolver::CanonicalResolver;
 use haste_fhir_model::r4::generated::{
-    resources::OperationOutcomeIssue, terminology::IssueType, types::ElementDefinition,
+    resources::{OperationOutcomeIssue, ResourceType},
+    terminology::IssueType,
+    types::ElementDefinition,
 };
 use haste_fhir_operation_error::OperationOutcomeError;
 use haste_pointer::Path;
 use haste_reflect::MetaValue;
 
-use crate::FHIRProfileCTX;
+use crate::{FHIRProfileCTX, utilities};
 
 fn is_slice(element: &ElementDefinition) -> bool {
     element.slicing.is_some()
@@ -78,17 +83,131 @@ async fn split_values_into_slices(
     Ok(())
 }
 
+struct FoundDiscriminator<'a, Resolver: CanonicalResolver> {
+    #[allow(dead_code)]
+    ctx: Arc<FHIRProfileCTX<'a, Resolver>>,
+    #[allow(dead_code)]
+    discriminator_element_index: usize,
+}
+
 /// The discriminator element specifies a path from which to compare with.
 /// To know how split should be done though we need the constant pattern etc... from that path.
 /// For example Extension.url could be the discriminator, but
 /// We need to pull from for example https://build.fhir.org/ig/HL7/US-Core/StructureDefinition-us-core-race.html
 ///  the actual value of the pattern to know how to split the slice. Which would be "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race"
 #[allow(dead_code)]
-fn find_element_definition_for_discriminator<'a>(
-    _ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
-    _discriminator_element: &ElementDefinition,
-) -> Result<(), OperationOutcomeError> {
-    Ok(())
+async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolver>(
+    ctx: Arc<FHIRProfileCTX<'a, Resolver>>,
+    search_for_path: &str,
+    current_index: usize,
+    parent_path: Option<&str>,
+) -> Result<Option<FoundDiscriminator<'a, Resolver>>, OperationOutcomeError> {
+    let element_to_check = ctx
+        .profile()
+        .snapshot
+        .as_ref()
+        .and_then(|snapshot| snapshot.element.get(current_index))
+        .ok_or_else(|| {
+            OperationOutcomeError::error(
+                IssueType::Exception(None),
+                format!("Invalid element index: {}", current_index),
+            )
+        })?;
+    let element_path = element_to_check
+        .path
+        .value
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    let current_element_path = if let Some(parent_path) = parent_path {
+        format!(
+            "{}.{}",
+            parent_path,
+            utilities::remove_type_on_path(element_path)
+        )
+    } else {
+        utilities::remove_type_on_path(element_path).to_string()
+    };
+
+    if current_element_path == search_for_path {
+        return Ok(Some(FoundDiscriminator {
+            ctx: ctx.clone(),
+            discriminator_element_index: current_index,
+        }));
+    }
+
+    if search_for_path.starts_with(&current_element_path) {
+        if let Some(profiles) = element_to_check.type_.as_ref().map(|types_| {
+            types_
+                .iter()
+                .filter_map(|t| t.profile.as_ref())
+                .flatten()
+                .collect::<Vec<_>>()
+        }) && !profiles.is_empty()
+        {
+            for profile in profiles.iter() {
+                if let Some(canonical) = profile.value.as_ref().map(|c| c.as_str()) {
+                    let resolved_profile = ctx
+                        .resolver
+                        .resolve(ResourceType::StructureDefinition, canonical)
+                        .await?
+                        .ok_or_else(|| {
+                            OperationOutcomeError::error(
+                                IssueType::Exception(None),
+                                format!("Failed to resolve profile canonical: {}", canonical),
+                            )
+                        })?;
+
+                    let p = Arc::new(FHIRProfileCTX::new(
+                        ctx.resolver.clone(),
+                        resolved_profile,
+                        ctx.root,
+                    )?);
+
+                    let found_discriminator = find_element_definition_for_discriminator(
+                        p,
+                        search_for_path,
+                        0,
+                        Some(&current_element_path),
+                    )
+                    .await?;
+
+                    if let Some(v) = found_discriminator {
+                        return Ok(Some(v));
+                    }
+                }
+            }
+        }
+
+        let default = vec![];
+
+        let child_indices = ele_index_to_child_indices(
+            ctx.profile()
+                .snapshot
+                .as_ref()
+                .map(|s| s.element.as_ref())
+                .unwrap_or(&default),
+            current_index,
+        )
+        .map_err(|err| OperationOutcomeError::error(IssueType::Exception(None), err))?;
+
+        for child_index in child_indices {
+            let found_discriminator = find_element_definition_for_discriminator(
+                ctx.clone(),
+                search_for_path,
+                child_index,
+                Some(&current_element_path),
+            )
+            .await?;
+
+            if let Some(v) = found_discriminator {
+                return Ok(Some(v));
+            }
+        }
+    };
+
+    Ok(None)
 }
 
 /// Returns all the slice locs that are relevant to the given discriminator.
