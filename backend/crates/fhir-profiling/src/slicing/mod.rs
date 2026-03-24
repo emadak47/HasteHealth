@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use haste_codegen::{
-    traversal::{self, ele_index_to_child_indices},
+    traversal::ele_index_to_child_indices,
     utilities::extract::{Max, cardinality, field_name},
 };
 use haste_fhir_client::canonical_resolver::CanonicalResolver;
@@ -27,20 +27,16 @@ fn is_slice(element: &ElementDefinition) -> bool {
 
 pub struct SlicingDescriptor {
     /// The index of the element definition that contains the discriminator.
-    discriminator: usize,
+    pub discriminator: usize,
     /// The indices of the slice element definitions that belong to the discriminator. The discriminator element is not included in this list.
-    slices: Vec<usize>,
+    pub slices: Vec<usize>,
 }
 
-#[allow(dead_code)]
 /// Return child elements that are slice element definitions.
-pub fn get_slice_element_definition_locations(
+pub fn get_slice_descriptors(
     elements: &[Box<ElementDefinition>],
-    index: usize,
+    children: &Vec<usize>,
 ) -> Result<Vec<SlicingDescriptor>, OperationOutcomeError> {
-    let children = traversal::ele_index_to_child_indices(elements, index)
-        .map_err(|error| OperationOutcomeError::error(IssueType::Exception(None), error))?;
-
     let mut i = 0;
 
     let mut slice_indices = vec![];
