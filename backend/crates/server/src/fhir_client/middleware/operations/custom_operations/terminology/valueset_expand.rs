@@ -1,9 +1,7 @@
 use crate::fhir_client::{
     ServerCTX,
-    middleware::{
-        ServerMiddlewareState,
-        operations::{ServerOperationContext, custom_operations::TerminologyResolver},
-    },
+    middleware::{ServerMiddlewareState, operations::ServerOperationContext},
+    resolver::ServerCTXResolver,
 };
 use haste_fhir_client::{FHIRClient, request::InvocationRequest};
 use haste_fhir_generated_ops::generated::ValueSetExpand;
@@ -40,7 +38,7 @@ pub fn valueset_expand_op<
                     let output = context
                         .state
                         .terminology
-                        .expand(TerminologyResolver::new(context.ctx), input)
+                        .expand(ServerCTXResolver::new(context.ctx), input)
                         .await?;
                     Ok(output)
                 })

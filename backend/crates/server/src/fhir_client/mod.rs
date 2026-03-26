@@ -39,6 +39,7 @@ use std::sync::{Arc, LazyLock};
 mod batch_transaction_processing;
 mod compartment;
 mod middleware;
+mod resolver;
 mod utilities;
 
 #[derive(OperationOutcomeError, Debug)]
@@ -435,6 +436,7 @@ impl<
                 Box::new(middleware::rate_limit::Middleware::new()),
                 Box::new(middleware::auth_z::scope_check::SMARTScopeAccessMiddleware::new()),
                 Box::new(middleware::auth_z::access_control::AccessControlMiddleware::new()),
+                // Box::new(middleware::validation::Middleware::new()),
                 Box::new(route_middleware),
                 Box::new(middleware::capabilities::Middleware::new()),
             ]),

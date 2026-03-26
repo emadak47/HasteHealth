@@ -119,6 +119,11 @@ pub async fn validate_singular_element<'a>(
     element_path: &Path,
     value_path: &Path,
 ) -> Result<Vec<OperationOutcomeIssue>, OperationOutcomeError> {
+    println!(
+        "Validating element at path: {} with profile {:?}",
+        element_path,
+        ctx.profile().id
+    );
     let element = element_path
         .get_typed::<Box<ElementDefinition>>(ctx.profile())
         .ok_or_else(|| {
@@ -169,8 +174,15 @@ pub async fn validate_singular_element<'a>(
         .collect::<std::collections::HashSet<usize>>();
 
     for descriptor in slice_descriptors.iter() {
-        issues
-            .extend(validate_slicing_descriptor(ctx.clone(), descriptor, value, value_path).await?);
+        issues.extend(
+            Box::pin(validate_slicing_descriptor(
+                ctx.clone(),
+                descriptor,
+                value,
+                value_path,
+            ))
+            .await?,
+        );
     }
 
     issues.extend(
@@ -259,17 +271,22 @@ pub async fn validate_element<'a>(
         if value.is_many() {
             for (i, _v) in value.flatten().iter().enumerate() {
                 issues.extend(
-                    validate_singular_element(
+                    Box::pin(validate_singular_element(
                         ctx.clone(),
                         element_pointer,
                         &value_pointer.descend(&format!("{}", i)),
-                    )
+                    ))
                     .await?,
                 );
             }
         } else {
             issues.extend(
-                validate_singular_element(ctx.clone(), element_pointer, value_pointer).await?,
+                Box::pin(validate_singular_element(
+                    ctx.clone(),
+                    element_pointer,
+                    value_pointer,
+                ))
+                .await?,
             );
         }
     }

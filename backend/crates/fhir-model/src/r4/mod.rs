@@ -5,6 +5,7 @@ pub mod datetime;
 #[cfg(feature = "sqlx")]
 pub mod sqlx;
 // pub mod terminology;
+pub mod conversion;
 pub mod generated;
 
 /// Helper function to get the FHIR type from a MetaValue

@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{Arc, LazyLock},
+};
 
 use haste_codegen::{
     traversal::ele_index_to_child_indices,
@@ -25,6 +28,7 @@ fn is_slice(element: &ElementDefinition) -> bool {
     element.slicing.is_some()
 }
 
+#[derive(Debug)]
 pub struct SlicingDescriptor {
     /// The index of the element definition that contains the discriminator.
     pub discriminator: usize,
@@ -78,6 +82,16 @@ struct FoundDiscriminator<'a, Resolver: CanonicalResolver> {
     discriminator_element_index: usize,
 }
 
+fn join_paths(parent: &str, child: &str) -> String {
+    if parent.is_empty() {
+        child.to_string()
+    } else if child.is_empty() {
+        parent.to_string()
+    } else {
+        format!("{}.{}", parent, child)
+    }
+}
+
 /// The discriminator element specifies a path from which to compare with.
 /// To know how split should be done though we need the constant pattern etc... from that path.
 /// For example Extension.url could be the discriminator, but
@@ -108,11 +122,7 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
         .unwrap_or("");
 
     let current_element_path = if let Some(parent_path) = parent_path {
-        format!(
-            "{}.{}",
-            parent_path,
-            utilities::remove_type_on_path(element_path)
-        )
+        join_paths(parent_path, utilities::remove_type_on_path(element_path))
     } else {
         utilities::remove_type_on_path(element_path).to_string()
     };
@@ -146,18 +156,16 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
                             )
                         })?;
 
-                    let p = Arc::new(FHIRProfileCTX::new(
-                        ctx.resolver.clone(),
-                        resolved_profile,
-                        ctx.root,
-                    )?);
-
-                    let found_discriminator = find_element_definition_for_discriminator(
-                        p,
+                    let found_discriminator = Box::pin(find_element_definition_for_discriminator(
+                        Arc::new(FHIRProfileCTX::new(
+                            ctx.resolver.clone(),
+                            resolved_profile,
+                            ctx.root,
+                        )?),
                         search_for_path,
                         0,
                         Some(&current_element_path),
-                    )
+                    ))
                     .await?;
 
                     if let Some(v) = found_discriminator {
@@ -180,12 +188,12 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
         .map_err(|err| OperationOutcomeError::error(IssueType::Exception(None), err))?;
 
         for child_index in child_indices {
-            let found_discriminator = find_element_definition_for_discriminator(
+            let found_discriminator = Box::pin(find_element_definition_for_discriminator(
                 ctx.clone(),
                 search_for_path,
                 child_index,
                 Some(&current_element_path),
-            )
+            ))
             .await?;
 
             if let Some(v) = found_discriminator {
@@ -229,7 +237,10 @@ fn get_slice_value_locs(
     }
 }
 
-fn is_conformant_to_slice_descriptor(
+static FP_ENGINE: LazyLock<haste_fhirpath::FPEngine> =
+    LazyLock::new(|| haste_fhirpath::FPEngine::new());
+
+async fn is_conformant_to_slice_descriptor(
     discriminator: &ElementDefinitionSlicingDiscriminator,
     slice_value_element_definition: &ElementDefinition,
     root: &dyn MetaValue,
@@ -241,16 +252,43 @@ fn is_conformant_to_slice_descriptor(
             "Value for discriminator not found at path".to_string(),
         )
     })?;
+    let values = FP_ENGINE
+        .evaluate(
+            discriminator
+                .path
+                .value
+                .as_ref()
+                .map(|s| s.as_str())
+                .unwrap_or("$this"),
+            vec![value],
+        )
+        .await
+        .map_err(|err| {
+            OperationOutcomeError::error(
+                IssueType::Exception(None),
+                format!(
+                    "Failed to evaluate FHIRPath expression for discriminator: {}",
+                    err
+                ),
+            )
+        })?;
+    let values = values.iter().collect::<Vec<_>>();
 
     match discriminator.type_.as_ref() {
-        DiscriminatorType::Exists(_) => Ok(value.flatten().len() > 0),
+        DiscriminatorType::Exists(_) => Ok(values.len() > 0),
         DiscriminatorType::Pattern(_) => {
             let pattern = slice_value_element_definition.pattern.as_ref().ok_or_else(|| OperationOutcomeError::error(
                 IssueType::Invalid(None),
                 "Slice value element definition must have a pattern for pattern discriminator".to_string(),
             ))?;
 
-            validate_pattern(value, pattern)
+            for value in values.iter() {
+                if validate_pattern(*value, pattern)? {
+                    return Ok(true);
+                }
+            }
+
+            return Ok(false);
         }
         DiscriminatorType::Profile(_) => Err(OperationOutcomeError::error(
             IssueType::NotSupported(None),
@@ -268,9 +306,11 @@ fn is_conformant_to_slice_descriptor(
                                 .to_string(),
                         )
                     })?;
+            let types = values.iter().map(|v| v.typename()).collect::<HashSet<_>>();
+
             let result = expected_types.iter().find(|t| {
                 if let Some(type_name) = t.code.value.as_ref().map(|c| c.as_str()) {
-                    type_name == value.typename()
+                    types.contains(type_name)
                 } else {
                     false
                 }
@@ -284,7 +324,12 @@ fn is_conformant_to_slice_descriptor(
                 "Slice value element definition must have a fixed value for value discriminator".to_string(),
             ))?;
 
-            is_equal(value, fixed_value)
+            for value in values.iter() {
+                if is_equal(*value, fixed_value)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
         }
         DiscriminatorType::Null(_) => Err(OperationOutcomeError::error(
             IssueType::NotSupported(None),
@@ -355,7 +400,9 @@ async fn split_slicing<'a>(
                     )?,
                     value,
                     &loc,
-                )? {
+                )
+                .await?
+                {
                     slice_locations.push(loc.clone());
                 } else {
                     remainder_locs.push(loc.clone());
@@ -452,6 +499,7 @@ pub async fn validate_slicing_descriptor<'a>(
                 format!("Missing slice locations for slice index: {}", slice),
             )
         })?;
+
         let slice_element_definition = get_element(ctx.profile(), *slice)?;
 
         issues.extend(validate_slice_cardinality(

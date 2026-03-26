@@ -1,9 +1,7 @@
 use crate::fhir_client::{
     ServerCTX,
-    middleware::{
-        ServerMiddlewareState,
-        operations::{ServerOperationContext, custom_operations::TerminologyResolver},
-    },
+    middleware::{ServerMiddlewareState, operations::ServerOperationContext},
+    resolver::ServerCTXResolver,
 };
 use haste_fhir_client::{FHIRClient, request::InvocationRequest};
 use haste_fhir_generated_ops::generated::ValueSetValidateCode;
@@ -37,7 +35,7 @@ pub fn valueset_validate_code_op<
              _request: &InvocationRequest,
              input: ValueSetValidateCode::Input| {
                 Box::pin(async move {
-                    let resolver = TerminologyResolver::new(context.ctx);
+                    let resolver = ServerCTXResolver::new(context.ctx);
                     let output = context.state.terminology.validate(resolver, input).await?;
                     Ok(output)
                 })
