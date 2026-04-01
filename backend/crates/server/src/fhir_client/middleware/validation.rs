@@ -80,10 +80,8 @@ fn extract_profile_url_and_resource_from_request(
     }
 }
 
-#[allow(dead_code)]
 pub struct Middleware {}
 impl Middleware {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         Middleware {}
     }
@@ -127,14 +125,19 @@ impl<
 
             for profile_url in profile_urls.iter() {
                 let resolver = ServerCTXResolver::new(context.ctx.clone());
-                let issues = haste_fhir_profiling::validate_profile_by_url(
+                let validation_operation_outcome = haste_fhir_profiling::validate_profile_by_url(
                     FHIRProfileArguments::new(Arc::new(resolver)),
                     profile_url,
                     resource,
                 )
                 .await?;
 
-                println!("issues: {:?} for profile", issues);
+                if !validation_operation_outcome.issue.is_empty() {
+                    return Err(OperationOutcomeError::new(
+                        None,
+                        validation_operation_outcome,
+                    ));
+                }
             }
 
             next(state, context).await

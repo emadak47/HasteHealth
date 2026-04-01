@@ -82,16 +82,6 @@ struct FoundDiscriminator<'a, Resolver: CanonicalResolver> {
     discriminator_element_index: usize,
 }
 
-fn join_paths(parent: &str, child: &str) -> String {
-    if parent.is_empty() {
-        child.to_string()
-    } else if child.is_empty() {
-        parent.to_string()
-    } else {
-        format!("{}.{}", parent, child)
-    }
-}
-
 /// The discriminator element specifies a path from which to compare with.
 /// To know how split should be done though we need the constant pattern etc... from that path.
 /// For example Extension.url could be the discriminator, but
@@ -114,6 +104,7 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
                 format!("Invalid element index: {}", current_index),
             )
         })?;
+
     let element_path = element_to_check
         .path
         .value
@@ -122,9 +113,14 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
         .unwrap_or("");
 
     let current_element_path = if let Some(parent_path) = parent_path {
-        join_paths(parent_path, utilities::remove_type_on_path(element_path))
+        utilities::join_paths(
+            parent_path,
+            utilities::get_element_field(element_path).unwrap_or(""),
+        )
     } else {
-        utilities::remove_type_on_path(element_path).to_string()
+        utilities::get_element_field(element_path)
+            .unwrap_or("")
+            .to_string()
     };
 
     if current_element_path == search_for_path {
@@ -206,9 +202,9 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
 }
 
 /// Returns all the slice locs that are relevant to the given discriminator.
-fn get_slice_value_locs(
+fn get_slice_value_locs<'a>(
+    ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
     discriminator_element: &ElementDefinition,
-    value: &dyn MetaValue,
     value_path: &Path,
 ) -> Result<Vec<Path>, OperationOutcomeError> {
     let field = field_name(
@@ -221,8 +217,7 @@ fn get_slice_value_locs(
     );
 
     let slice_path = value_path.descend(&field);
-
-    let Some(v) = slice_path.get(value) else {
+    let Some(v) = slice_path.get(ctx.root) else {
         return Ok(vec![]);
     };
 
@@ -272,6 +267,7 @@ async fn is_conformant_to_slice_descriptor(
                 ),
             )
         })?;
+
     let values = values.iter().collect::<Vec<_>>();
 
     match discriminator.type_.as_ref() {
@@ -338,13 +334,13 @@ async fn is_conformant_to_slice_descriptor(
     }
 }
 
+#[derive(Debug)]
 struct SplitSlicing(HashMap<usize, Vec<Path>>);
 
 /// Splits the given values into slices according to the discriminator.
 async fn split_slicing<'a>(
     ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
     slicing_descriptor: &SlicingDescriptor,
-    value: &dyn MetaValue,
     mut locs: Vec<Path>,
 ) -> Result<SplitSlicing, OperationOutcomeError> {
     let mut slices_split = SplitSlicing(HashMap::new());
@@ -398,7 +394,7 @@ async fn split_slicing<'a>(
                         slice_descriminator_value_definition.ctx.profile(),
                         slice_descriminator_value_definition.discriminator_element_index,
                     )?,
-                    value,
+                    ctx.root,
                     &loc,
                 )
                 .await?
@@ -437,6 +433,7 @@ fn get_element<'a>(
 }
 
 fn validate_slice_cardinality(
+    profile: &StructureDefinition,
     slice_element_definition: &ElementDefinition,
     slice_locs: &Vec<Path>,
 ) -> Result<Vec<OperationOutcomeIssue>, OperationOutcomeError> {
@@ -450,7 +447,9 @@ fn validate_slice_cardinality(
             IssueSeverity::Error(None),
             IssueType::Value(None),
             format!(
-                "Cardinality too low: expected at least '{}', found '{}'",
+                 "Profile: '{}' Element: '{}' Minimum number of required values not met expected at least '{}', found '{}'",
+                profile.id.as_ref().map(|s| s.as_str()).unwrap_or("unknown"),
+                slice_element_definition.id.as_ref().map(|s| s.as_str()).unwrap_or("unknown"),
                 min,
                 slice_locs.len()
             ),
@@ -482,13 +481,13 @@ fn validate_slice_cardinality(
 pub async fn validate_slicing_descriptor<'a>(
     ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
     slicing_descriptor: &SlicingDescriptor,
-    value: &dyn MetaValue,
     value_path: &Path,
 ) -> Result<Vec<OperationOutcomeIssue>, OperationOutcomeError> {
-    let discriminator_element = get_element(ctx.profile(), slicing_descriptor.discriminator)?;
-    let all_slice_locs = get_slice_value_locs(discriminator_element, value, value_path)?;
-    let split_slices =
-        split_slicing(ctx.clone(), slicing_descriptor, value, all_slice_locs).await?;
+    let profile = ctx.profile();
+    let discriminator_element = get_element(profile, slicing_descriptor.discriminator)?;
+    let all_slice_locs = get_slice_value_locs(ctx.clone(), discriminator_element, value_path)?;
+    let split_slices = split_slicing(ctx.clone(), slicing_descriptor, all_slice_locs).await?;
+
     let mut issues = vec![];
     let elements_pointer = Path::new().descend("snapshot").descend("element");
 
@@ -500,9 +499,10 @@ pub async fn validate_slicing_descriptor<'a>(
             )
         })?;
 
-        let slice_element_definition = get_element(ctx.profile(), *slice)?;
+        let slice_element_definition = get_element(profile, *slice)?;
 
         issues.extend(validate_slice_cardinality(
+            profile,
             slice_element_definition,
             slice_locs,
         )?);
