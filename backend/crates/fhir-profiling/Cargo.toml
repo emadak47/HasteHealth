@@ -1,5 +1,6 @@
 [package]
 name = "haste-fhir-profiling"
+description = "Haste Health FHIR profiling library."
 publish = true
 version.workspace = true
 authors.workspace = true
