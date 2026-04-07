@@ -19,6 +19,13 @@ use crate::{
     validators::{cardinality::validate_cardinality, fixed_value, pattern::validate_pattern},
 };
 
+fn conformant_to_type(type_to_check: Option<&str>, type_: Option<&str>) -> bool {
+    match type_to_check {
+        Some("Resource") | Some("DomainResource") => true,
+        _ => type_ == type_to_check,
+    }
+}
+
 /// Check if the element is constrained to profiles type.
 /// Also if nested profiles are found, validate against those as well.
 ///
@@ -48,7 +55,7 @@ async fn validate_types_and_profiles_if_present<'a>(
 
     if let Some(profile_type) = types
         .iter()
-        .find(|t| t.code.value.as_ref().map(|s| s.as_str()) == type_)
+        .find(|t| conformant_to_type(t.code.value.as_ref().map(|s| s.as_str()), type_))
     {
         let mut issues = vec![];
 
@@ -167,6 +174,7 @@ pub async fn validate_singular_element<'a>(
     // Includes all of slice descriptors which is how to split (the descriptor)
     // and the slices that belong to that descriptor (the slices).
     let slice_descriptors = get_slice_descriptors(elements, &children)?;
+
     let slice_indices_set = slice_descriptors
         .iter()
         .flat_map(|descriptor| {
