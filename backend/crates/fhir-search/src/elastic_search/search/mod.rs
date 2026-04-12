@@ -96,22 +96,16 @@ fn sort_build(
             }
         },
         SearchParamType::String(_) => match direction {
-            SortDirection::Asc => {
-                let sort_col = url.clone();
-                Ok(json!({
-                    sort_col: {
-                        "order": "asc"
-                    }
-                }))
-            }
-            SortDirection::Desc => {
-                let sort_col = url.clone();
-                Ok(json!({
-                    sort_col: {
-                        "order": "desc"
-                    }
-                }))
-            }
+            SortDirection::Asc => Ok(json!({
+                url: {
+                    "order": "asc"
+                }
+            })),
+            SortDirection::Desc => Ok(json!({
+                url: {
+                    "order": "desc"
+                }
+            })),
         },
         SearchParamType::Token(_) => match direction {
             SortDirection::Asc => {
