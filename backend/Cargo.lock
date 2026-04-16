@@ -1574,6 +1574,7 @@ dependencies = [
  "haste-fhir-operation-error",
  "haste-fhir-search",
  "haste-fhirpath",
+ "haste-jwt",
  "tokio",
 ]
 
@@ -1988,6 +1989,7 @@ dependencies = [
  "haste-fhir-model",
  "haste-fhir-search",
  "haste-fhir-serialization-json",
+ "haste-jwt",
  "rust-embed",
 ]
 
