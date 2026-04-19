@@ -16,13 +16,11 @@ use crate::{
     memory::{SearchParameterMemoryResolve, SearchParametersIndex, create_index_map},
 };
 
-#[allow(dead_code)]
 pub struct ElasticSearchParameterResolver<Repo: Repository + Send + Sync> {
     es: Arc<Elasticsearch>,
     repo: Repo,
 }
 
-#[allow(dead_code)]
 static SEARCHPARAMETER_CACHE: LazyLock<Cache<(TenantId, ProjectId), Arc<SearchParametersIndex>>> =
     LazyLock::new(|| {
         CacheBuilder::new(50_000)
@@ -32,13 +30,11 @@ static SEARCHPARAMETER_CACHE: LazyLock<Cache<(TenantId, ProjectId), Arc<SearchPa
     });
 
 impl<Repo: Repository + Send + Sync> ElasticSearchParameterResolver<Repo> {
-    #[allow(dead_code)]
     pub fn new(es: Arc<Elasticsearch>, repo: Repo) -> Self {
         ElasticSearchParameterResolver { es, repo }
     }
 }
 
-#[allow(dead_code)]
 async fn create_project_sp_index<Repo: Repository + Send + Sync>(
     es: Arc<Elasticsearch>,
     repo: &Repo,
@@ -78,7 +74,6 @@ async fn create_project_sp_index<Repo: Repository + Send + Sync>(
     Ok(create_index_map(project_sps))
 }
 
-#[allow(dead_code)]
 async fn get_or_create_sp_index_for_project<Repo: Repository + Send + Sync>(
     es: Arc<Elasticsearch>,
     repo: &Repo,
@@ -108,21 +103,25 @@ impl<Repo: Repository + Send + Sync> SearchParameterResolve
         Vec<Arc<haste_fhir_model::r4::generated::resources::SearchParameter>>,
         OperationOutcomeError,
     > {
-        // let project_index = get_or_create_sp_index_for_project(
-        //     self.es.as_ref(),
-        //     &self.repo,
-        //     tenant.clone(),
-        //     project.clone(),
-        // )
-        // .await?;
+        let project_index = get_or_create_sp_index_for_project(
+            self.es.clone(),
+            &self.repo,
+            tenant.clone(),
+            project.clone(),
+        )
+        .await?;
 
-        let root = SearchParameterMemoryResolve::new()
+        let mut sps_by_resource_type = SearchParameterMemoryResolve::new()
             .by_resource_type(tenant, project, resource_type)
             .await?;
 
-        // root.extend(;
+        let project_sps = project_index
+            .by_resource_type(tenant, project, resource_type)
+            .await?;
 
-        Ok(root)
+        sps_by_resource_type.extend(project_sps);
+
+        Ok(sps_by_resource_type)
     }
 
     async fn by_name(
@@ -141,7 +140,16 @@ impl<Repo: Repository + Send + Sync> SearchParameterResolve
         {
             Ok(Some(parameter))
         } else {
-            Ok(None)
+            let project_index = get_or_create_sp_index_for_project(
+                self.es.clone(),
+                &self.repo,
+                tenant.clone(),
+                project.clone(),
+            )
+            .await?;
+            project_index
+                .by_name(tenant, project, resource_type, code)
+                .await
         }
     }
 
@@ -153,8 +161,20 @@ impl<Repo: Repository + Send + Sync> SearchParameterResolve
         Vec<Arc<haste_fhir_model::r4::generated::resources::SearchParameter>>,
         OperationOutcomeError,
     > {
-        SearchParameterMemoryResolve::new()
+        let mut all_sps = SearchParameterMemoryResolve::new()
             .all(tenant, project)
-            .await
+            .await?;
+
+        let project_index = get_or_create_sp_index_for_project(
+            self.es.clone(),
+            &self.repo,
+            tenant.clone(),
+            project.clone(),
+        )
+        .await?;
+
+        all_sps.extend(project_index.all(tenant, project).await?);
+
+        Ok(all_sps)
     }
 }
