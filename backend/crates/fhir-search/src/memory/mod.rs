@@ -26,11 +26,23 @@ impl SearchParameterResolve for SearchParametersIndex {
         _project: &ProjectId,
         resource_type: &ResourceType,
     ) -> Result<Vec<Arc<SearchParameter>>, OperationOutcomeError> {
-        let resource_params = self.by_resource_type.get("Resource").unwrap();
-        let domain_params = self.by_resource_type.get("DomainResource").unwrap();
         let mut return_vec = Vec::new();
-        return_vec.extend(resource_params.values().cloned());
-        return_vec.extend(domain_params.values().cloned());
+
+        if let Some(domain_params) = self
+            .by_resource_type
+            .get("DomainResource")
+            .map(|d| d.values().cloned())
+        {
+            return_vec.extend(domain_params);
+        }
+
+        if let Some(resource_params) = self
+            .by_resource_type
+            .get("Resource")
+            .map(|r| r.values().cloned())
+        {
+            return_vec.extend(resource_params);
+        }
 
         if let Some(params) = self.by_resource_type.get(resource_type.as_ref()) {
             return_vec.extend(params.values().cloned());
@@ -143,13 +155,13 @@ fn build_search_parameter_index_map(
     }
 }
 
-static R4_SEARCH_PARAMETERS_INDEX: LazyLock<SearchParametersIndex> = LazyLock::new(|| {
-    create_index_map(
+pub static R4_SEARCH_PARAMETERS_INDEX: LazyLock<Arc<SearchParametersIndex>> = LazyLock::new(|| {
+    Arc::new(create_index_map(
         R4_SEARCH_PARAMETERS
             .iter()
             .map(|param| param.as_ref().clone())
             .collect(),
-    )
+    ))
 });
 
 pub fn create_index_map(search_parameters: Vec<SearchParameter>) -> SearchParametersIndex {
@@ -160,44 +172,4 @@ pub fn create_index_map(search_parameters: Vec<SearchParameter>) -> SearchParame
     }
 
     index
-}
-
-#[derive(Clone)]
-pub struct SearchParameterMemoryResolve {}
-impl SearchParameterMemoryResolve {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-impl SearchParameterResolve for SearchParameterMemoryResolve {
-    async fn by_resource_type(
-        &self,
-        tenant: &TenantId,
-        project: &ProjectId,
-        resource_type: &ResourceType,
-    ) -> Result<Vec<Arc<SearchParameter>>, OperationOutcomeError> {
-        R4_SEARCH_PARAMETERS_INDEX
-            .by_resource_type(tenant, project, resource_type)
-            .await
-    }
-
-    async fn by_name(
-        &self,
-        tenant: &TenantId,
-        project: &ProjectId,
-        resource_type: Option<&ResourceType>,
-        name: &str,
-    ) -> Result<Option<Arc<SearchParameter>>, OperationOutcomeError> {
-        R4_SEARCH_PARAMETERS_INDEX
-            .by_name(tenant, project, resource_type, name)
-            .await
-    }
-
-    async fn all(
-        &self,
-        tenant: &TenantId,
-        project: &ProjectId,
-    ) -> Result<Vec<Arc<SearchParameter>>, OperationOutcomeError> {
-        R4_SEARCH_PARAMETERS_INDEX.all(tenant, project).await
-    }
 }
