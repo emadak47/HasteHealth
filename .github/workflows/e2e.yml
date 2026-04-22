@@ -102,5 +102,5 @@ jobs:
         working-directory: ./backend
 
       - name: Run Testscripts
-        run: ./target/debug/haste-health testscript run -i testscripts -w 1000
+        run: ./target/debug/haste-health testscript run -i testscripts -w 2000
         working-directory: ./backend
