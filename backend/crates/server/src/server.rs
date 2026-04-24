@@ -200,6 +200,7 @@ pub async fn server() -> Result<NormalizePath<Router>, OperationOutcomeError> {
     );
 
     let tenant_router = Router::new()
+        .nest("/auth", auth_n::tenant::routes::create_router())
         .nest("/{project}/api/v1", project_router)
         .layer(
             // Relies on tenant for html so moving operation outcome error handling to here.
