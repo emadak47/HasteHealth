@@ -34,12 +34,13 @@ pub struct EmailSelect;
 
 pub async fn global_login_get(_: EmailSelect) -> Result<Response, OperationOutcomeError> {
     let global_login_post_uri = "/auth/login";
+    let signup_url = "/auth/signup";
 
     Ok(page_html(html! {
-            (banner("Global Login", None))
+            (banner("Login", None))
             div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0  sm:max-w-md" {
                 form class="space-y-4 md:space-y-6" action=(global_login_post_uri) method="POST" {
-                    div class="p-6 space-y-4 md:space-y-6 sm:p-8" {
+                    div class="p-6 space-y-2 sm:p-8" {
                         div {
                             label for="email" class="block mb-2 text-sm font-medium text-slate-600 dark:text-white" {
                                 "Enter your email"
@@ -48,6 +49,9 @@ pub async fn global_login_get(_: EmailSelect) -> Result<Response, OperationOutco
                         }
                         button type="submit" class="w-full text-white bg-orange-500 hover:bg-orange-500 focus:ring-4 focus:outline-none focus:ring-orange-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center" {
                             "Continue"
+                        }
+                        div class="mt-2 flex items-center justify-start" {
+                            a href=(signup_url) class="text-sm font-medium text-orange-600 hover:underline " { "Sign up" }
                         }
                     }
                 }
