@@ -30,7 +30,7 @@ pub async fn tenant_select_get<
 
     Ok(page_html(html! {
         (banner("Enter your tenant identifier", None))
-        div class="w-full bg-white rounded-lg shadow md:mt-0 xl:p-0 w-md sm:max-w-md text-slate-700" {
+        div class="w-full bg-white rounded-lg shadow md:mt-0 xl:p-0 text-slate-700" {
             div class="p-6 space-y-4 md:space-y-6 sm:p-8" {
                 form class="space-y-2" action=(action_url) method="POST" {
                     div class="grid grid-cols-4 gap-1" {

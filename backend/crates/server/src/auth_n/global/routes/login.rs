@@ -38,7 +38,7 @@ pub async fn global_login_get(_: EmailSelect) -> Result<Response, OperationOutco
 
     Ok(page_html(html! {
             (banner("Login", None))
-            div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0  sm:max-w-md" {
+            div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0" {
                 form class="space-y-4 md:space-y-6" action=(global_login_post_uri) method="POST" {
                     div class="p-6 space-y-2 sm:p-8" {
                         div {

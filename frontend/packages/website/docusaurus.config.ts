@@ -142,7 +142,7 @@ const config: Config = {
           position: "right",
         },
         {
-          to: "https://api.haste.health/auth/tenant-select",
+          to: "https://api.haste.health/auth/login",
           label: "Log in",
           position: "right",
           className: "signup-link",

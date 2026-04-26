@@ -34,7 +34,7 @@ pub fn scope_approval_html(
 
     page_html(html! {
             (banner(tenant.as_ref(), Some(&project_name)))
-            div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0  sm:max-w-md" {
+            div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0" {
                 div class="p-6 space-y-4 md:space-y-6 sm:p-8" {
                     (client_app_header_html(client_application))
                     div {

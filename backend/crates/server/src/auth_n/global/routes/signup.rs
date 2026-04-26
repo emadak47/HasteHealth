@@ -40,7 +40,7 @@ pub async fn global_signup_get<
 ) -> Result<Response, OperationOutcomeError> {
     Ok(page_html(html! {
         (banner("Sign up", None))
-        div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0  sm:max-w-md" {
+        div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0 " {
             form class="space-y-4 p-6 sm:p-8" action=("/auth/signup") method="POST" {
                 div class="grid grid-cols-4 gap-1 space-y-1" {                
                     div class="col-span-4" {

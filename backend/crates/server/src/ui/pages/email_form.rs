@@ -18,7 +18,7 @@ pub fn email_form_html(
 
     page_html(html! {
         (banner(tenant.as_ref(), project_name))
-        div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0  sm:max-w-md" {
+        div class="w-full bg-white rounded-lg shadow  md:mt-0  xl:p-0 " {
             form class="space-y-4 md:space-y-6" action=(email_information.continue_url) method="POST" {
                 div class="p-6 space-y-4 md:space-y-6 sm:p-8" {
                     div {
