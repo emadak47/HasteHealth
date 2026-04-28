@@ -128,11 +128,11 @@ pub async fn global_login_post<
     Ok(message_html(
         None,
         None,
-        html! { div class="space-y-4 text-orange-900" {
+        html! { div class="space-y-4 text-slate-900" {
 
-                div { span {
-                    "An email has been sent to your email address with instructions to login."
-                }}
+                r#"An email has been sent to your email address "#
+                span class="underline text-orange-600" { (&login_data.email) }
+                r#"."#
 
                 div {
                     span class="font-semibold" {
