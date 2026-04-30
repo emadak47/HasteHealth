@@ -1,3 +1,8 @@
+const patient = await readResource("Patient", "90277570");
+
+console.log(patient.id);
+console.log(patient.name);
+
 export {};
 
 interface Person {
@@ -8,7 +13,3 @@ interface Person {
 function hello(t: Person) {
   console.log(`Hello, ${t.name}! You are ${t.age} years old.`);
 }
-
-hello({ name: "Alice", age: 30 });
-hello({ name: "Bob", age: 25 });
-hello({ name: "Charlie", age: 35 });

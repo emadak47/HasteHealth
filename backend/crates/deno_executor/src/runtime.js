@@ -1,27 +1,21 @@
 // runtime.js
-const { core } = Deno;
 
-function argsToMessage(...args) {
-  return args.map((arg) => JSON.stringify(arg)).join(" ");
-}
+((root) => {
+  const core = Deno.core;
 
-globalThis.console = {
-  log: (...args) => {
-    core.print(`[out]: ${argsToMessage(...args)}\n`, false);
-  },
-  error: (...args) => {
-    core.print(`[err]: ${argsToMessage(...args)}\n`, true);
-  },
-};
+  function argsToMessage(...args) {
+    return args.map((arg) => JSON.stringify(arg)).join(" ");
+  }
 
-// globalThis.runjs = {
-//   readFile: (path) => {
-//     return core.ops.op_read_file(path);
-//   },
-//   writeFile: (path, contents) => {
-//     return core.ops.op_write_file(path, contents);
-//   },
-//   //   removeFile: (path) => {
-//   //     return core.ops.op_remove_file(path);
-//   //   },
-// };
+  root.readResource = (resourceType, id) =>
+    core.ops.read_resource(resourceType, id);
+
+  root.console = {
+    log: (...args) => {
+      core.print(`[out]: ${argsToMessage(...args)}\n`, false);
+    },
+    error: (...args) => {
+      core.print(`[err]: ${argsToMessage(...args)}\n`, true);
+    },
+  };
+})(globalThis);
