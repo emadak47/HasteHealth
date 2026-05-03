@@ -1,5 +1,6 @@
 use crate::{
     ServerEnvironmentVariables,
+    auth_n::middleware::jwt::User,
     fhir_client::{
         middleware::{
             ServerMiddlewareContext, ServerMiddlewareNext, ServerMiddlewareOutput,
@@ -68,7 +69,7 @@ pub struct ServerCTX<Client: FHIRClient<Arc<Self>, OperationOutcomeError>> {
     pub tenant: TenantId,
     pub project: ProjectId,
     pub fhir_version: SupportedFHIRVersions,
-    pub user: Arc<haste_jwt::claims::UserTokenClaims>,
+    pub user: Arc<User>,
     pub client: Arc<Client>,
     pub rate_limit: Arc<dyn haste_rate_limit::RateLimit>,
 }
@@ -92,7 +93,7 @@ impl<Client: FHIRClient<Arc<Self>, OperationOutcomeError>> ServerCTX<Client> {
         tenant: TenantId,
         project: ProjectId,
         fhir_version: SupportedFHIRVersions,
-        user: Arc<haste_jwt::claims::UserTokenClaims>,
+        user: Arc<User>,
         client: Arc<Client>,
         rate_limit: Arc<dyn haste_rate_limit::RateLimit>,
     ) -> Self {
@@ -116,31 +117,34 @@ impl<Client: FHIRClient<Arc<Self>, OperationOutcomeError>> ServerCTX<Client> {
             tenant: tenant.clone(),
             project: project.clone(),
             fhir_version: SupportedFHIRVersions::R4,
-            user: Arc::new(haste_jwt::claims::UserTokenClaims {
-                sub: AuthorId::System,
-                exp: 0,
-                aud: AuthorKind::System.to_string(),
-                user_role: UserRole::Owner,
-                project: Some(project),
-                tenant,
-                subscription_tier: SubscriptionTier::Unlimited,
-                scope: Scopes(vec![Scope::SMART(SmartScope::Resource(
-                    SMARTResourceScope {
-                        user: SmartResourceScopeUser::System,
-                        level: SmartResourceScopeLevel::AllResources,
-                        permissions: SmartResourceScopePermissions::new(vec![
-                            SmartResourceScopePermission::Create,
-                            SmartResourceScopePermission::Read,
-                            SmartResourceScopePermission::Update,
-                            SmartResourceScopePermission::Delete,
-                            SmartResourceScopePermission::Search,
-                        ]),
-                    },
-                ))]),
-                user_id: AuthorId::System,
-                resource_type: AuthorKind::System,
-                access_policy_version_ids: vec![],
-                membership: None,
+            user: Arc::new(User {
+                token: None,
+                claims: haste_jwt::claims::UserTokenClaims {
+                    sub: AuthorId::System,
+                    exp: 0,
+                    aud: AuthorKind::System.to_string(),
+                    user_role: UserRole::Owner,
+                    project: Some(project),
+                    tenant,
+                    subscription_tier: SubscriptionTier::Unlimited,
+                    scope: Scopes(vec![Scope::SMART(SmartScope::Resource(
+                        SMARTResourceScope {
+                            user: SmartResourceScopeUser::System,
+                            level: SmartResourceScopeLevel::AllResources,
+                            permissions: SmartResourceScopePermissions::new(vec![
+                                SmartResourceScopePermission::Create,
+                                SmartResourceScopePermission::Read,
+                                SmartResourceScopePermission::Update,
+                                SmartResourceScopePermission::Delete,
+                                SmartResourceScopePermission::Search,
+                            ]),
+                        },
+                    ))]),
+                    user_id: AuthorId::System,
+                    resource_type: AuthorKind::System,
+                    access_policy_version_ids: vec![],
+                    membership: None,
+                },
             }),
             client,
             rate_limit,
