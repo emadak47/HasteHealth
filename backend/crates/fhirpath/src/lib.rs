@@ -335,7 +335,7 @@ async fn evaluate_function<'a>(
                 )))]),
             )
         }
-        "upper" => {
+        op @ ("upper" | "lower") => {
             validate_arguments(&function.arguments, &Cardinality::Zero)?;
 
             if context.values.is_empty() {
@@ -343,17 +343,22 @@ async fn evaluate_function<'a>(
             }
             if context.values.len() > 1 {
                 return Err(FunctionError::InvalidCardinality(
-                    "upper".to_string(),
+                    op.to_string(),
                     context.values.len(),
                 )
                 .into());
             }
 
             let input = downcast_string(context.values[0])?;
+            let transformed = match op {
+                "upper" => input.to_uppercase(),
+                "lower" => input.to_lowercase(),
+                _ => unreachable!(),
+            };
             Ok(
                 context.new_context_from(vec![context.allocate(ResolvedValue::Box(Box::new(
                     FHIRString {
-                        value: Some(input.to_uppercase()),
+                        value: Some(transformed),
                         ..Default::default()
                     },
                 )))]),
@@ -1994,5 +1999,32 @@ mod tests {
             .downcast_ref::<FHIRString>()
             .unwrap();
         assert_eq!(value.value.as_deref(), Some("XYZ"));
+    }
+
+    #[tokio::test]
+    async fn test_lower_function() {
+        let engine = FPEngine::new();
+
+        let result = engine.evaluate("'HELLO'.lower()", vec![]).await.unwrap();
+        assert_eq!(result.values.len(), 1);
+        let value = result.values[0]
+            .as_any()
+            .downcast_ref::<FHIRString>()
+            .unwrap();
+        assert_eq!(value.value.as_deref(), Some("hello"));
+
+        let result = engine.evaluate("'AbCd'.lower()", vec![]).await.unwrap();
+        let value = result.values[0]
+            .as_any()
+            .downcast_ref::<FHIRString>()
+            .unwrap();
+        assert_eq!(value.value.as_deref(), Some("abcd"));
+
+        let result = engine.evaluate("'xyz'.lower()", vec![]).await.unwrap();
+        let value = result.values[0]
+            .as_any()
+            .downcast_ref::<FHIRString>()
+            .unwrap();
+        assert_eq!(value.value.as_deref(), Some("xyz"));
     }
 }
