@@ -335,6 +335,30 @@ async fn evaluate_function<'a>(
                 )))]),
             )
         }
+        "upper" => {
+            validate_arguments(&function.arguments, &Cardinality::Zero)?;
+
+            if context.values.is_empty() {
+                return Ok(context.new_context_from(vec![]));
+            }
+            if context.values.len() > 1 {
+                return Err(FunctionError::InvalidCardinality(
+                    "upper".to_string(),
+                    context.values.len(),
+                )
+                .into());
+            }
+
+            let input = downcast_string(context.values[0])?;
+            Ok(
+                context.new_context_from(vec![context.allocate(ResolvedValue::Box(Box::new(
+                    FHIRString {
+                        value: Some(input.to_uppercase()),
+                        ..Default::default()
+                    },
+                )))]),
+            )
+        }
         "as" => {
             validate_arguments(&function.arguments, &Cardinality::One)?;
 
@@ -1943,5 +1967,32 @@ mod tests {
             .unwrap();
 
         assert_eq!(value.value.as_ref(), Some(&"Paul".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_upper_function() {
+        let engine = FPEngine::new();
+
+        let result = engine.evaluate("'hello'.upper()", vec![]).await.unwrap();
+        assert_eq!(result.values.len(), 1);
+        let value = result.values[0]
+            .as_any()
+            .downcast_ref::<FHIRString>()
+            .unwrap();
+        assert_eq!(value.value.as_deref(), Some("HELLO"));
+
+        let result = engine.evaluate("'AbCd'.upper()", vec![]).await.unwrap();
+        let value = result.values[0]
+            .as_any()
+            .downcast_ref::<FHIRString>()
+            .unwrap();
+        assert_eq!(value.value.as_deref(), Some("ABCD"));
+
+        let result = engine.evaluate("'XYZ'.upper()", vec![]).await.unwrap();
+        let value = result.values[0]
+            .as_any()
+            .downcast_ref::<FHIRString>()
+            .unwrap();
+        assert_eq!(value.value.as_deref(), Some("XYZ"));
     }
 }
