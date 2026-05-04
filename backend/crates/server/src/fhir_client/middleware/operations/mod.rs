@@ -21,7 +21,7 @@ use haste_fhir_ops::OperationInvocation;
 use haste_fhir_search::SearchEngine;
 use haste_fhir_terminology::FHIRTerminology;
 use haste_repository::Repository;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 mod custom_operations;
 
@@ -40,6 +40,10 @@ impl<CTX> Clone for ServerOperations<CTX> {
         ServerOperations(self.0.clone())
     }
 }
+
+static DENO_EXECUTOR: LazyLock<haste_deno_executor::pool::DenoPool> = LazyLock::new(|| {
+    haste_deno_executor::pool::DenoPool::new(4).expect("Failed to create DenoPool")
+});
 
 impl<
     Repo: Repository + Send + Sync + 'static,
@@ -189,25 +193,11 @@ impl<
             } else {
                 match get_request_operation_code(&context.request) {
                     Some("execute-ts") => {
-                        let context_clone = context.ctx.clone();
-
-                        let (tx, rx) = tokio::sync::oneshot::channel();
-
-                        std::thread::spawn(move || {
-                            let rt = tokio::runtime::Builder::new_current_thread()
-                                .enable_all()
-                                .build()
-                                .unwrap();
-
-                            let local = tokio::task::LocalSet::new();
-
-                            local.block_on(&rt, async move {
-                                let output = tokio::task::spawn_local(async move {
-                                    let result = haste_deno_executor::run_code(
-                                        context_clone.clone(),
-                                        context_clone.client.clone(),
-                                        haste_deno_executor::PluginCodeType::TypeScript,
-                                        r#"
+                        let result = DENO_EXECUTOR.execute(
+                            context.ctx.clone(), 
+                            context.ctx.client.clone(),
+                            haste_deno_executor::PluginCodeType::TypeScript,
+                              r#"
                                 export default async function() {
                                     const sd = await fhir.readResource("StructureDefinition", "Patient");
 
@@ -222,42 +212,15 @@ impl<
                                         ]
                                     };
                                 }
-                            "#
-                                        .to_string(),
-                                    )
-                                    .await
-                                    .map_err(|e| {
-                                        tracing::error!("Error executing dynamic code: {:?}", e);
-                                        OperationOutcomeError::fatal(
-                                            IssueType::Exception(None),
-                                            format!("Failed to execute dynamic code"),
-                                        )
-                                    })?;
-
-                                    
-      
-                                    return result.ok_or_else(|| OperationOutcomeError::error(IssueType::Exception(None), "Dynamic code did not return a result".to_string()));
-                                })
-                                .await
-                                .map_err(|e| {
-                                    tracing::error!("Error executing dynamic code: {:?}", e);
-                                    OperationOutcomeError::fatal(
-                                        IssueType::Exception(None),
-                                        format!("Failed to execute dynamic code"),
-                                    )
-                                });
-
-                                let _ = tx.send(output);
-                            });
-                        });
-
-                        // Back in the Send future — just await the result
-                        let result = rx.await.map_err(|_| {
-                            OperationOutcomeError::fatal(
+                            "#).await.map_err(|e| {
+                                OperationOutcomeError::fatal(
+                                    IssueType::Exception(None),
+                                    format!("Failed to execute dynamic code: {e}"),
+                                )
+                            })?.ok_or(OperationOutcomeError::fatal(
                                 IssueType::Exception(None),
-                                format!("Failed to receive dynamic code execution result"),
-                            )
-                        })???;
+                                "Dynamic code did not return a result".to_string(),
+                            ))?;
 
                         let parameters =
                             haste_fhir_serialization_json::from_serde_value::<Parameters>(result)
